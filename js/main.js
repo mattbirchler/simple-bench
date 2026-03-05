@@ -25,6 +25,8 @@ window.SimpleBench = { benchmarks: {} };
 
   function setAllButtons(disabled) {
     runAllBtn.disabled = disabled;
+    const bmBtn = document.getElementById("bench-mode-btn");
+    if (bmBtn) bmBtn.disabled = disabled;
     benchOrder.forEach((id) => {
       getEls(id).btn.disabled = disabled;
     });
@@ -221,6 +223,268 @@ window.SimpleBench = { benchmarks: {} };
       openModal(btn.getAttribute("data-info"));
     });
   });
+
+  // ---- Benchmark Mode ----
+  let benchLoops = 5;
+  let cooldownSecs = 30;
+  const benchModeBtn = document.getElementById("bench-mode-btn");
+  const loopCountEl = document.getElementById("loop-count");
+  const loopDecBtn = document.getElementById("loop-dec");
+  const loopIncBtn = document.getElementById("loop-inc");
+  const coolCountEl = document.getElementById("cool-count");
+  const coolDecBtn = document.getElementById("cool-dec");
+  const coolIncBtn = document.getElementById("cool-inc");
+
+  loopDecBtn.addEventListener("click", function () {
+    if (benchLoops > 1) {
+      benchLoops--;
+      loopCountEl.textContent = benchLoops;
+    }
+  });
+  loopIncBtn.addEventListener("click", function () {
+    if (benchLoops < 10) {
+      benchLoops++;
+      loopCountEl.textContent = benchLoops;
+    }
+  });
+  coolDecBtn.addEventListener("click", function () {
+    if (cooldownSecs > 1) {
+      cooldownSecs = Math.max(1, cooldownSecs - 5);
+      coolCountEl.textContent = cooldownSecs;
+    }
+  });
+  coolIncBtn.addEventListener("click", function () {
+    if (cooldownSecs < 60) {
+      cooldownSecs = Math.min(60, cooldownSecs + 5);
+      coolCountEl.textContent = cooldownSecs;
+    }
+  });
+  const benchModeOverlay = document.getElementById("bench-mode-overlay");
+  const benchModePhase = document.getElementById("bench-mode-phase");
+  const benchModeDetail = document.getElementById("bench-mode-detail");
+  const benchModeProgress = document.getElementById("bench-mode-progress");
+  const benchModeProgressLabel = document.getElementById("bench-mode-progress-label");
+  const benchModeCooldown = document.getElementById("bench-mode-cooldown");
+  const benchModeCooldownTimer = document.getElementById("bench-mode-cooldown-timer");
+  const benchModeCooldownFill = document.getElementById("bench-mode-cooldown-fill");
+  const benchModeCancel = document.getElementById("bench-mode-cancel");
+  const benchResultsOverlay = document.getElementById("bench-results-overlay");
+  const benchResultsBody = document.getElementById("bench-results-body");
+  const benchResultsClose = document.getElementById("bench-results-close");
+  const benchResultsCsv = document.getElementById("bench-results-csv");
+  const benchResultsCopy = document.getElementById("bench-results-copy");
+
+  let benchModeCancelled = false;
+  let benchModeData = null; // stored for CSV download
+
+  const benchNames = {
+    dom: "DOM Manipulation",
+    canvas: "Canvas 2D Rendering",
+    compute: "JavaScript Compute",
+    css: "CSS Layout & Animation",
+    async: "Async & Concurrency",
+    webgl: "WebGL GPU Rendering",
+  };
+
+  function cooldown(seconds) {
+    return new Promise((resolve) => {
+      benchModeCooldown.hidden = false;
+      benchModeCooldownTimer.textContent = seconds;
+      benchModeCooldownFill.style.transition = "none";
+      benchModeCooldownFill.style.width = "100%";
+      // Force reflow so transition reset takes effect
+      benchModeCooldownFill.offsetWidth;
+      benchModeCooldownFill.style.transition = "width 1s linear";
+
+      let remaining = seconds;
+      const interval = setInterval(() => {
+        if (benchModeCancelled) {
+          clearInterval(interval);
+          benchModeCooldown.hidden = true;
+          resolve();
+          return;
+        }
+        remaining--;
+        benchModeCooldownTimer.textContent = remaining;
+        benchModeCooldownFill.style.width = ((remaining / seconds) * 100) + "%";
+        if (remaining <= 0) {
+          clearInterval(interval);
+          benchModeCooldown.hidden = true;
+          resolve();
+        }
+      }, 1000);
+    });
+  }
+
+  async function runBenchmarkMode() {
+    if (running) return;
+    running = true;
+    benchModeCancelled = false;
+    setAllButtons(true);
+    benchModeBtn.disabled = true;
+
+    benchModeOverlay.hidden = false;
+    benchModeCooldown.hidden = true;
+
+    // allResults[loop][benchId] = normalized score
+    const allResults = [];
+    const totalSteps = benchLoops * benchOrder.length;
+    let currentStep = 0;
+
+    for (let loop = 0; loop < benchLoops; loop++) {
+      allResults.push({});
+
+      for (let b = 0; b < benchOrder.length; b++) {
+        if (benchModeCancelled) break;
+
+        const id = benchOrder[b];
+        benchModePhase.textContent = benchNames[id];
+        benchModeDetail.textContent = "LOOP " + (loop + 1) + "/" + benchLoops + " \u2022 TEST " + (b + 1) + "/" + benchOrder.length;
+        const pct = Math.round((currentStep / totalSteps) * 100);
+        benchModeProgress.style.width = pct + "%";
+        benchModeProgressLabel.textContent = pct + "%";
+
+        await runBenchmark(id);
+        allResults[loop][id] = results[id];
+        currentStep++;
+
+        if (benchModeCancelled) break;
+
+        // Cooldown between tests (skip after the very last test)
+        const isLast = (loop === benchLoops - 1 && b === benchOrder.length - 1);
+        if (!isLast) {
+          benchModePhase.textContent = "COOLDOWN";
+          benchModeDetail.textContent = "THERMAL THROTTLE PREVENTION";
+          await cooldown(cooldownSecs);
+        }
+      }
+
+      if (benchModeCancelled) break;
+    }
+
+    benchModeProgress.style.width = "100%";
+    benchModeProgressLabel.textContent = "100%";
+    benchModeOverlay.hidden = true;
+
+    setAllButtons(false);
+    benchModeBtn.disabled = false;
+    running = false;
+
+    if (!benchModeCancelled) {
+      showBenchmarkResults(allResults);
+    }
+  }
+
+  function showBenchmarkResults(allResults) {
+    const completedLoops = allResults.length;
+
+    // Calculate averages
+    const averages = {};
+    benchOrder.forEach((id) => {
+      const scores = allResults.map((loop) => loop[id]).filter((s) => s != null && s > 0);
+      if (scores.length > 0) {
+        averages[id] = scores.reduce((a, b) => a + b, 0) / scores.length;
+      }
+    });
+
+    // Composite average (geometric mean of averages)
+    const avgValues = benchOrder.map((id) => averages[id]).filter((s) => s != null && s > 0);
+    const compositeAvg = avgValues.length > 0
+      ? Math.pow(avgValues.reduce((p, s) => p * s, 1), 1 / avgValues.length)
+      : 0;
+
+    // Build results HTML
+    let tableRows = "";
+    benchOrder.forEach((id) => {
+      let cells = '<td>' + benchNames[id] + '</td>';
+      for (let loop = 0; loop < completedLoops; loop++) {
+        const val = allResults[loop][id];
+        cells += '<td class="num">' + (val != null ? Math.round(val) : "-") + '</td>';
+      }
+      cells += '<td class="num avg">' + (averages[id] != null ? Math.round(averages[id]) : "-") + '</td>';
+      tableRows += '<tr>' + cells + '</tr>';
+    });
+
+    let loopHeaders = "";
+    for (let i = 0; i < completedLoops; i++) {
+      loopHeaders += '<th class="num">R' + (i + 1) + '</th>';
+    }
+
+    benchResultsBody.innerHTML =
+      '<div class="bench-results-composite">' +
+        '<div class="bench-results-composite-label">COMPOSITE AVERAGE</div>' +
+        '<div class="bench-results-composite-score">' + Math.round(compositeAvg) + '</div>' +
+      '</div>' +
+      '<table class="bench-results-table">' +
+        '<thead><tr><th>TEST</th>' + loopHeaders + '<th class="num">AVG</th></tr></thead>' +
+        '<tbody>' + tableRows + '</tbody>' +
+      '</table>';
+
+    // Store data for CSV
+    benchModeData = { allResults, averages, compositeAvg, completedLoops };
+
+    benchResultsOverlay.hidden = false;
+  }
+
+  function buildCSV() {
+    if (!benchModeData) return "";
+    const { allResults, averages, completedLoops } = benchModeData;
+
+    let csv = "Test";
+    for (let i = 0; i < completedLoops; i++) {
+      csv += ",Run " + (i + 1);
+    }
+    csv += ",Average\n";
+
+    benchOrder.forEach((id) => {
+      csv += benchNames[id];
+      for (let loop = 0; loop < completedLoops; loop++) {
+        const val = allResults[loop][id];
+        csv += "," + (val != null ? val.toFixed(2) : "");
+      }
+      csv += "," + (averages[id] != null ? averages[id].toFixed(2) : "");
+      csv += "\n";
+    });
+
+    return csv;
+  }
+
+  function downloadCSV() {
+    const csv = buildCSV();
+    if (!csv) return;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "simplebench-results-" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function copyCSV() {
+    const csv = buildCSV();
+    if (!csv) return;
+    navigator.clipboard.writeText(csv).then(function () {
+      const inner = benchResultsCopy.querySelector(".btn-inner");
+      inner.textContent = "COPIED";
+      setTimeout(function () { inner.textContent = "COPY CSV"; }, 1500);
+    });
+  }
+
+  benchModeBtn.addEventListener("click", runBenchmarkMode);
+  benchModeCancel.addEventListener("click", function () {
+    benchModeCancelled = true;
+  });
+  benchResultsClose.addEventListener("click", function () {
+    benchResultsOverlay.hidden = true;
+  });
+  benchResultsOverlay.addEventListener("click", function (e) {
+    if (e.target === benchResultsOverlay) benchResultsOverlay.hidden = true;
+  });
+  benchResultsCsv.addEventListener("click", downloadCSV);
+  benchResultsCopy.addEventListener("click", copyCSV);
 
   // ---- Ambient glitch: occasional random screen tear ----
   function randomScreenTear() {

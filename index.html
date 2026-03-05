@@ -23,10 +23,30 @@
         <span class="separator">//</span>
         <span class="tagline">BREAK YOUR BROWSER</span>
       </div>
-      <button id="run-all-btn" class="btn btn-primary">
-        <span class="btn-inner">RUN ALL</span>
-        <span class="btn-glitch" aria-hidden="true">RUN ALL</span>
-      </button>
+      <div class="header-buttons">
+        <button id="run-all-btn" class="btn btn-primary">
+          <span class="btn-inner">RUN ALL</span>
+          <span class="btn-glitch" aria-hidden="true">RUN ALL</span>
+        </button>
+        <div class="bench-mode-group">
+          <button id="bench-mode-btn" class="btn btn-benchmark">
+            <span class="btn-inner">BENCHMARK</span>
+            <span class="btn-glitch" aria-hidden="true">BENCHMARK</span>
+          </button>
+          <div class="bench-loop-control">
+            <button class="bench-loop-btn" id="loop-dec">&minus;</button>
+            <span class="bench-loop-value" id="loop-count">5</span>
+            <button class="bench-loop-btn" id="loop-inc">+</button>
+            <span class="bench-loop-label">RUNS</span>
+          </div>
+          <div class="bench-loop-control">
+            <button class="bench-loop-btn" id="cool-dec">&minus;</button>
+            <span class="bench-loop-value" id="cool-count">30</span>
+            <button class="bench-loop-btn" id="cool-inc">+</button>
+            <span class="bench-loop-label">SEC</span>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -174,6 +194,54 @@
     </section>
 
   </main>
+
+  <!-- Benchmark mode overlay -->
+  <div id="bench-mode-overlay" class="bench-mode-overlay" hidden>
+    <div class="bench-mode-panel">
+      <div class="bench-mode-header">
+        <span class="bench-mode-tag">// BENCHMARK MODE</span>
+        <button id="bench-mode-cancel" class="btn btn-modal-close">X</button>
+      </div>
+      <div class="bench-mode-status" id="bench-mode-status">
+        <div class="bench-mode-phase" id="bench-mode-phase">INITIALIZING...</div>
+        <div class="bench-mode-detail" id="bench-mode-detail"></div>
+        <div class="bench-mode-progress-wrap">
+          <div class="progress-bar bench-mode-bar">
+            <div class="progress-fill" id="bench-mode-progress"></div>
+          </div>
+          <span class="bench-mode-progress-label" id="bench-mode-progress-label">0%</span>
+        </div>
+        <div class="bench-mode-cooldown" id="bench-mode-cooldown" hidden>
+          <div class="bench-mode-cooldown-icon">COOLING</div>
+          <div class="bench-mode-cooldown-timer" id="bench-mode-cooldown-timer">30</div>
+          <div class="bench-mode-cooldown-bar">
+            <div class="bench-mode-cooldown-fill" id="bench-mode-cooldown-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Benchmark results overlay -->
+  <div id="bench-results-overlay" class="modal-overlay" hidden>
+    <div class="bench-results-panel">
+      <div class="modal-header">
+        <span class="explain-tag">// BENCHMARK RESULTS</span>
+        <button id="bench-results-close" class="btn btn-modal-close">X</button>
+      </div>
+      <div class="bench-results-body" id="bench-results-body"></div>
+      <div class="bench-results-footer">
+        <button id="bench-results-copy" class="btn btn-benchmark">
+          <span class="btn-inner">COPY CSV</span>
+          <span class="btn-glitch" aria-hidden="true">COPY CSV</span>
+        </button>
+        <button id="bench-results-csv" class="btn btn-primary">
+          <span class="btn-inner">DOWNLOAD CSV</span>
+          <span class="btn-glitch" aria-hidden="true">DOWNLOAD CSV</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Info modal -->
   <div id="info-modal" class="modal-overlay" hidden>
