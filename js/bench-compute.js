@@ -63,7 +63,11 @@
     return Object.keys(parsed).length;
   }
 
-  function measureTask(fn, iterations) {
+  function measureTask(fn, warmup, iterations) {
+    // Warmup — let JIT optimize
+    for (let i = 0; i < warmup; i++) fn();
+
+    // Measured runs — accumulate only work time
     const start = performance.now();
     for (let i = 0; i < iterations; i++) fn();
     const elapsed = performance.now() - start;
@@ -75,23 +79,23 @@
     description: "Prime sieve to 3M, sort 300K floats, 350x350 matrix multiply, 50KB JSON x60 parse/stringify",
 
     run: async function (onProgress) {
-      // Sieve
-      const sieveOps = measureTask(() => sieve(3000000), 15);
+      // Sieve — 3 warmup, 15 measured
+      const sieveOps = measureTask(() => sieve(3000000), 3, 15);
       onProgress(0.25);
       await new Promise((r) => setTimeout(r, 0));
 
-      // Array sort
-      const sortOps = measureTask(() => arraySort(300000), 30);
+      // Array sort — 5 warmup, 30 measured
+      const sortOps = measureTask(() => arraySort(300000), 5, 30);
       onProgress(0.5);
       await new Promise((r) => setTimeout(r, 0));
 
-      // Matrix multiply
-      const matOps = measureTask(() => matrixMultiply(350), 9);
+      // Matrix multiply — 3 warmup, 9 measured
+      const matOps = measureTask(() => matrixMultiply(350), 3, 9);
       onProgress(0.75);
       await new Promise((r) => setTimeout(r, 0));
 
-      // JSON round-trip
-      const jsonOps = measureTask(() => jsonRoundTrip(), 60);
+      // JSON round-trip — 10 warmup, 60 measured
+      const jsonOps = measureTask(() => jsonRoundTrip(), 10, 60);
       onProgress(1);
 
       // Geometric mean

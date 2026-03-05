@@ -467,6 +467,70 @@ main {
   text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
 }
 
+/* ---- BENCH EXPLAIN OVERLAY ---- */
+.bench-explain {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.92);
+  padding: 0.875rem 1.25rem;
+  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
+  z-index: 2;
+  opacity: 0;
+  clip-path: inset(0 0 0 100%);
+  transition: clip-path 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.2s ease;
+  pointer-events: none;
+  border-left: 3px solid var(--cyan);
+}
+
+.bench-explain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 255, 0.03) 2px,
+    rgba(0, 255, 255, 0.03) 4px
+  );
+  pointer-events: none;
+}
+
+.bench-card:hover .bench-explain {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+}
+
+.bench-card.running .bench-explain,
+.bench-card.running:hover .bench-explain {
+  opacity: 0;
+  clip-path: inset(0 0 0 100%);
+}
+
+.explain-tag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+}
+
+.bench-explain p {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--white);
+  opacity: 0.85;
+  max-width: 60ch;
+}
+
 /* ---- BENCH INDEX (big faded number) ---- */
 .bench-index {
   position: absolute;

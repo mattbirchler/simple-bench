@@ -1,6 +1,7 @@
 (function () {
   const SIEVE_N = 1500000;
   const RAF_DURATION = 9000;
+  const RAF_WARMUP = 1000;
 
   function sieveSingleThread(n) {
     const start = performance.now();
@@ -50,10 +51,24 @@
       const intervals = [];
       let lastTime = performance.now();
       const startTime = lastTime;
+      let warmedUp = false;
 
       function tick(now) {
         const elapsed = now - startTime;
-        if (elapsed >= RAF_DURATION) {
+        const delta = now - lastTime;
+        lastTime = now;
+
+        // Discard warmup period to let compositor/GC settle
+        if (!warmedUp) {
+          if (elapsed >= RAF_WARMUP) {
+            warmedUp = true;
+            // Reset — start measuring from here
+          }
+          requestAnimationFrame(tick);
+          return;
+        }
+
+        if (elapsed >= RAF_WARMUP + RAF_DURATION) {
           // Compute standard deviation of intervals
           const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
           const variance =
@@ -62,8 +77,7 @@
           resolve(stdDev);
           return;
         }
-        const delta = now - lastTime;
-        lastTime = now;
+
         intervals.push(delta);
         requestAnimationFrame(tick);
       }
@@ -100,7 +114,7 @@
         onProgress(0.6);
       }
 
-      // rAF consistency
+      // rAF consistency (with warmup period)
       const stdDev = await measureRAFConsistency();
       const rafScore = Math.max(0, 100 - stdDev * 10);
       onProgress(1);

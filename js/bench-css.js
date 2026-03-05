@@ -42,9 +42,12 @@
       buildLayoutTree(layoutContainer);
 
       const wrappers = layoutContainer.querySelectorAll("div[style]");
-      const start1 = performance.now();
+
+      // Accumulate only work time, yield outside timing
+      let layoutElapsed = 0;
 
       for (let i = 0; i < LAYOUT_ITERATIONS; i++) {
+        const start = performance.now();
         for (let j = 0; j < wrappers.length; j++) {
           const w = wrappers[j];
           w.style.flexDirection = i % 2 === 0 ? "column" : "row";
@@ -54,6 +57,7 @@
         }
         // Force synchronous reflow
         layoutContainer.offsetHeight;
+        layoutElapsed += performance.now() - start;
 
         if (i % 20 === 0) {
           onProgress((i / LAYOUT_ITERATIONS) * 0.5);
@@ -61,8 +65,7 @@
         }
       }
 
-      const layoutTime = performance.now() - start1;
-      const layoutOps = (LAYOUT_ITERATIONS / layoutTime) * 1000;
+      const layoutOps = (LAYOUT_ITERATIONS / layoutElapsed) * 1000;
 
       sandbox.innerHTML = "";
 
@@ -86,9 +89,10 @@
         divs.push(div);
       }
 
-      const start2 = performance.now();
+      let styleElapsed = 0;
 
       for (let i = 0; i < STYLE_ITERATIONS; i++) {
+        const start = performance.now();
         for (let j = 0; j < divs.length; j++) {
           const d = divs[j];
           d.style.transform = `translate(${Math.sin(i + j) * 20}px, ${Math.cos(i + j) * 20}px) rotate(${i * 2}deg)`;
@@ -97,6 +101,7 @@
         }
         // Force synchronous style recalculation + layout
         styleContainer.offsetHeight;
+        styleElapsed += performance.now() - start;
 
         if (i % 50 === 0) {
           onProgress(0.5 + (i / STYLE_ITERATIONS) * 0.5);
@@ -104,8 +109,7 @@
         }
       }
 
-      const styleTime = performance.now() - start2;
-      const styleOps = (STYLE_ITERATIONS / styleTime) * 1000;
+      const styleOps = (STYLE_ITERATIONS / styleElapsed) * 1000;
 
       // Weighted composite: layout (40%) + style recalc (60%)
       const rawScore = layoutOps * 0.4 + styleOps * 0.6;

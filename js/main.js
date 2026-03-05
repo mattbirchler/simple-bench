@@ -100,12 +100,16 @@ window.SimpleBench = { benchmarks: {} };
   }
 
   function updateComposite() {
-    const scores = benchOrder.map((id) => results[id]).filter((s) => s != null);
+    const scores = benchOrder.map((id) => results[id]).filter((s) => s != null && s > 0);
     if (scores.length === 0) return;
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-    const display = Math.round(avg);
+    // Geometric mean — appropriate for combining normalized scores with different scales
+    const geoMean = Math.pow(
+      scores.reduce((product, s) => product * s, 1),
+      1 / scores.length
+    );
+    const display = Math.round(geoMean);
     animateScore(compositeScoreEl, display, true);
-    compositeProgressEl.style.width = Math.min(avg, 120) / 1.2 + "%";
+    compositeProgressEl.style.width = Math.min(geoMean, 120) / 1.2 + "%";
   }
 
   async function runBenchmark(id) {

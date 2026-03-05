@@ -64,6 +64,10 @@
         <div class="progress-bar">
           <div class="progress-fill" data-progress-for="dom"></div>
         </div>
+        <div class="bench-explain" aria-hidden="true">
+          <span class="explain-tag">// WHY IT MATTERS</span>
+          <p>Every time a webpage updates — loading emails, refreshing a feed, filtering a table — the browser creates and destroys thousands of elements. This test hammers that pipeline to measure how fast your browser can churn through real page updates.</p>
+        </div>
       </div>
 
       <div class="bench-card" data-bench="canvas">
@@ -83,6 +87,10 @@
         </div>
         <div class="progress-bar">
           <div class="progress-fill" data-progress-for="canvas"></div>
+        </div>
+        <div class="bench-explain" aria-hidden="true">
+          <span class="explain-tag">// WHY IT MATTERS</span>
+          <p>Maps, data visualizations, browser games, and image editors all rely on Canvas drawing. This test floods the 2D renderer with thousands of shapes per frame to measure your browser's raw graphics throughput.</p>
         </div>
       </div>
 
@@ -104,6 +112,10 @@
         <div class="progress-bar">
           <div class="progress-fill" data-progress-for="compute"></div>
         </div>
+        <div class="bench-explain" aria-hidden="true">
+          <span class="explain-tag">// WHY IT MATTERS</span>
+          <p>JavaScript powers everything from spreadsheet formulas to AI inference in the browser. This test runs heavy number-crunching, sorting, and data parsing to measure your engine's raw computational muscle.</p>
+        </div>
       </div>
 
       <div class="bench-card" data-bench="css">
@@ -123,6 +135,10 @@
         </div>
         <div class="progress-bar">
           <div class="progress-fill" data-progress-for="css"></div>
+        </div>
+        <div class="bench-explain" aria-hidden="true">
+          <span class="explain-tag">// WHY IT MATTERS</span>
+          <p>Scrolling, resizing windows, and opening menus all force the browser to recalculate layout. Complex sites with flexbox and grid layouts amplify this cost. This test stress-tests how fast your browser reflows and repaints under pressure.</p>
         </div>
       </div>
 
@@ -144,16 +160,13 @@
         <div class="progress-bar">
           <div class="progress-fill" data-progress-for="async"></div>
         </div>
+        <div class="bench-explain" aria-hidden="true">
+          <span class="explain-tag">// WHY IT MATTERS</span>
+          <p>Modern sites offload heavy work to background threads so the UI stays smooth. This test measures how well your browser parallelizes across CPU cores and how steady your animation frame rate stays under load.</p>
+        </div>
       </div>
     </section>
 
-    <footer>
-      <span>SIMPLEBENCH</span>
-      <span class="footer-sep">&mdash;</span>
-      <span>PURE STATIC HTML/CSS/JS</span>
-      <span class="footer-sep">&mdash;</span>
-      <span>NO FRAMEWORKS. NO MERCY.</span>
-    </footer>
   </main>
 
   <div id="bench-sandbox"></div>
