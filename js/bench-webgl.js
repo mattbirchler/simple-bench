@@ -320,12 +320,16 @@
     return { vao };
   }
 
-  function createFramebuffer(gl, w, h) {
+  function createFramebuffer(gl, w, h, useFloat) {
     const fb = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    if (useFloat) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.FLOAT, null);
+    } else {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    }
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -392,12 +396,8 @@
         throw new Error("WebGL 2 not supported");
       }
 
-      // Check for float texture support (needed for HDR framebuffer)
-      const extFloat = gl.getExtension("EXT_color_buffer_float");
-      if (!extFloat) {
-        if (this._preview) { this._preview.remove(); this._preview = null; }
-        throw new Error("EXT_color_buffer_float not supported");
-      }
+      // Float textures for HDR — fall back to RGBA8 on mobile GPUs
+      const hasFloat = !!gl.getExtension("EXT_color_buffer_float");
 
       const sceneProgram = linkProgram(gl, SCENE_VERT, SCENE_FRAG);
       const postProgram = linkProgram(gl, POST_VERT, POST_FRAG);
@@ -416,7 +416,7 @@
 
       const scene = initScene(gl);
       const post = initPostProcess(gl);
-      const fbo = createFramebuffer(gl, canvas.width, canvas.height);
+      const fbo = createFramebuffer(gl, canvas.width, canvas.height, hasFloat);
 
       const aspect = canvas.width / canvas.height;
 
