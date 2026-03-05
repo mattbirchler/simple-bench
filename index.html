@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimpleBench - Browser Performance Benchmark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Instrument+Sans:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Scanline overlay -->
+  <div class="scanlines" aria-hidden="true"></div>
+  <!-- Noise texture overlay -->
+  <div class="noise" aria-hidden="true"></div>
+
+  <header>
+    <div class="header-inner">
+      <h1 class="glitch-text" data-text="SIMPLEBENCH">SIMPLEBENCH</h1>
+      <div class="header-meta">
+        <span class="version-tag">v0.0.1</span>
+        <span class="separator">//</span>
+        <span class="tagline">BREAK YOUR BROWSER</span>
+      </div>
+      <button id="run-all-btn" class="btn btn-primary">
+        <span class="btn-inner">RUN ALL</span>
+        <span class="btn-glitch" aria-hidden="true">RUN ALL</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section id="composite-section">
+      <div class="composite-label-row">
+        <span class="composite-label">COMPOSITE INDEX</span>
+        <span class="composite-label-line" aria-hidden="true"></span>
+      </div>
+      <div class="composite-score-display">
+        <span id="composite-score" class="composite-number glitch-text" data-text="--">--</span>
+      </div>
+      <div class="progress-bar composite-bar">
+        <div id="composite-progress" class="progress-fill"></div>
+        <div class="progress-noise" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section id="benchmarks">
+      <div class="bench-card" data-bench="dom">
+        <div class="bench-index" aria-hidden="true">01</div>
+        <div class="bench-header">
+          <div class="bench-info">
+            <h2>DOM MANIPULATION</h2>
+            <p>30 cycles of create/update/swap/delete on 3,000 rows (12,000 cells)</p>
+          </div>
+          <div class="bench-controls">
+            <div class="score-block">
+              <span class="bench-score" data-score-for="dom">--</span>
+              <span class="bench-unit" data-unit-for="dom"></span>
+            </div>
+            <button class="btn btn-run" data-run="dom">EXEC</button>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" data-progress-for="dom"></div>
+        </div>
+      </div>
+
+      <div class="bench-card" data-bench="canvas">
+        <div class="bench-index" aria-hidden="true">02</div>
+        <div class="bench-header">
+          <div class="bench-info">
+            <h2>CANVAS 2D RENDERING</h2>
+            <p>Render 1,500 frames of 4,500 arc sprites — raw draw throughput</p>
+          </div>
+          <div class="bench-controls">
+            <div class="score-block">
+              <span class="bench-score" data-score-for="canvas">--</span>
+              <span class="bench-unit" data-unit-for="canvas"></span>
+            </div>
+            <button class="btn btn-run" data-run="canvas">EXEC</button>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" data-progress-for="canvas"></div>
+        </div>
+      </div>
+
+      <div class="bench-card" data-bench="compute">
+        <div class="bench-index" aria-hidden="true">03</div>
+        <div class="bench-header">
+          <div class="bench-info">
+            <h2>JAVASCRIPT COMPUTE</h2>
+            <p>Prime sieve to 3M, sort 300K floats, 350x350 matrix multiply, 50KB JSON x60 parse/stringify</p>
+          </div>
+          <div class="bench-controls">
+            <div class="score-block">
+              <span class="bench-score" data-score-for="compute">--</span>
+              <span class="bench-unit" data-unit-for="compute"></span>
+            </div>
+            <button class="btn btn-run" data-run="compute">EXEC</button>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" data-progress-for="compute"></div>
+        </div>
+      </div>
+
+      <div class="bench-card" data-bench="css">
+        <div class="bench-index" aria-hidden="true">04</div>
+        <div class="bench-header">
+          <div class="bench-info">
+            <h2>CSS LAYOUT & ANIMATION</h2>
+            <p>600 forced reflows on 1,500 nested flex/grid elements + 1,500 style recalcs on 900 elements</p>
+          </div>
+          <div class="bench-controls">
+            <div class="score-block">
+              <span class="bench-score" data-score-for="css">--</span>
+              <span class="bench-unit" data-unit-for="css"></span>
+            </div>
+            <button class="btn btn-run" data-run="css">EXEC</button>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" data-progress-for="css"></div>
+        </div>
+      </div>
+
+      <div class="bench-card" data-bench="async">
+        <div class="bench-index" aria-hidden="true">05</div>
+        <div class="bench-header">
+          <div class="bench-info">
+            <h2>ASYNC & CONCURRENCY</h2>
+            <p>Parallel Web Worker sieve (1.5M) vs single-thread + 9s rAF frame-timing jitter</p>
+          </div>
+          <div class="bench-controls">
+            <div class="score-block">
+              <span class="bench-score" data-score-for="async">--</span>
+              <span class="bench-unit" data-unit-for="async"></span>
+            </div>
+            <button class="btn btn-run" data-run="async">EXEC</button>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" data-progress-for="async"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>SIMPLEBENCH</span>
+      <span class="footer-sep">&mdash;</span>
+      <span>PURE STATIC HTML/CSS/JS</span>
+      <span class="footer-sep">&mdash;</span>
+      <span>NO FRAMEWORKS. NO MERCY.</span>
+    </footer>
+  </main>
+
+  <div id="bench-sandbox"></div>
+
+  <script src="js/main.js"></script>
+  <script src="js/bench-dom.js"></script>
+  <script src="js/bench-canvas.js"></script>
+  <script src="js/bench-compute.js"></script>
+  <script src="js/bench-css.js"></script>
+  <script src="js/bench-async.js"></script>
+</body>
+</html>
