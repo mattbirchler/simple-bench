@@ -1,49 +1,115 @@
-# SimpleBench
+# SimpleBench v2
 
-A browser performance benchmarking tool. Pure static HTML, CSS, and vanilla JavaScript — no frameworks, no build tools, no dependencies. Designed for GitHub Pages deployment.
+SimpleBench is a static browser benchmarking tool focused on lower variance and more realistic subsystem coverage across desktop and mobile browsers.
 
-## Benchmarks
+## Benchmark Suite
 
-SimpleBench runs 5 tests that stress different browser subsystems:
+SimpleBench v2 runs 7 benchmarks:
 
-1. **DOM Manipulation** — 30 cycles of creating, updating, swapping, and deleting 3,000 table rows (12,000 cells per cycle). Measures DOM mutation throughput in ops/sec.
+1. **DOM Manipulation**
+- Mixed insert/remove/reorder list operations.
+- Attribute/class toggles and text updates.
+- Periodic forced layout checkpoints.
+- Primary metric: `ops_per_sec`.
 
-2. **Canvas 2D Rendering** — Renders 1,500 frames of 4,500 bouncing arc sprites on an 800x600 canvas in a synchronous tight loop. Measures raw Canvas2D draw throughput in frames/sec. Not tied to display refresh rate.
+2. **Canvas 2D Rendering**
+- Fixed-duration Canvas2D workload on a measured 800x600 surface.
+- Blend of path rendering, sprite blits, and text draws.
+- Primary metric: `draw_calls_per_sec`.
 
-3. **JavaScript Compute** — Runs four CPU-intensive tasks and reports their geometric mean throughput:
-   - Prime Sieve of Eratosthenes to 3,000,000 (15 iterations)
-   - Array sort of 300,000 random floats (30 iterations)
-   - Naive 350x350 matrix multiplication (9 iterations)
-   - JSON stringify + parse of a ~50KB object (60 iterations)
+3. **JavaScript Compute**
+- Seeded deterministic datasets.
+- Sieve, sort, matrix multiply, and JSON round-trip.
+- Min-duration timing loops per task.
+- Primary metric: `compute_geomean`.
 
-4. **CSS Layout & Animation** — Two phases of synchronous layout/style work:
-   - 600 forced reflows on 1,500 nested flexbox/grid elements (toggling properties + reading `offsetHeight`)
-   - 1,500 style recalculations on 900 absolutely-positioned elements (transform, color, width changes + forced reflow)
+4. **CSS Layout Pipeline**
+- Layout invalidation/reflow phase.
+- Style recalculation phase.
+- Compositor animation phase with JS pressure.
+- Primary metric: `pipeline_score`.
 
-5. **Async & Concurrency** — Two sub-tests combined:
-   - Spawns `navigator.hardwareConcurrency` Web Workers each running a prime sieve to 1,500,000, comparing parallel wall-clock time to sequential single-threaded time (measures parallelism speedup)
-   - 9-second `requestAnimationFrame` consistency test measuring frame-timing jitter (standard deviation)
+5. **Worker Throughput**
+- Sweep over worker counts `[1, 2, 4, max]`.
+- Throughput scaling and efficiency capture.
+- Primary metric: `throughput_scaling_auc`.
+
+6. **Responsiveness Under Load**
+- Event-loop lag and rAF jitter under worker + CPU burst load.
+- Tracks long-task count when supported.
+- Primary metric: `responsiveness_index`.
+
+7. **WebGL GPU Rendering**
+- Fixed WebGL2 rendering tiers.
+- Weighted FPS and frame-time metrics.
+- Uses `EXT_disjoint_timer_query_webgl2` when available, with CPU frametime fallback.
+- Primary metric: `fps_tier_weighted`.
+
+## Measurement Protocol
+
+- Deterministic seeded randomness per benchmark run.
+- Fixed measured resolution: `800x600` @ DPR 1 paths.
+- Per benchmark default protocol: `1 warmup + 3 measured` samples.
+- If variance is high (CV over threshold), benchmark auto-reruns one extra measured batch.
+- Measurements pause/retry when tab visibility changes during sampling.
+- A brief sample cooldown is applied between intra-benchmark samples to reduce thermal/frequency transients.
 
 ## Scoring
 
-Each benchmark produces a raw score (ops/sec, frames/sec, etc.) which is normalized against a baseline where 100 = good modern hardware. Scores are uncapped — faster hardware scores higher.
+- Bench cards show:
+- Normalized `index` score (calibrated baseline model).
+- Raw primary metric with its true unit.
+- Variability info (`CV`, sample count, unstable flags).
 
-The **Composite Index** is the geometric mean of all completed benchmark scores.
+- Category subscores:
+- `UI Pipeline`: DOM + CSS
+- `Graphics`: Canvas + WebGL
+- `Compute`: JS Compute + Worker Throughput
+- `Responsiveness`: Responsiveness Under Load
+
+- Composite index:
+- Geometric mean of category subscores.
+
+Calibration baselines live in `js/calibration/v2-baselines.json`.
+
+## Baseline Calibration Workflow
+
+Normalization is only meaningful if baselines are calibrated from real hardware.
+
+1. Run benchmark mode on 3-5 representative devices:
+- Low-end mobile
+- Mid-range laptop
+- High-end desktop
+2. Export CSV from each device and capture each benchmark's primary raw median.
+3. For each primary metric key in `v2-baselines.json`, compute geometric mean across devices.
+4. Update the corresponding `baseline` values in `js/calibration/v2-baselines.json`.
+5. Re-run a verification pass (5 loops per device) and confirm composite and per-benchmark CV remain within target thresholds.
+
+## Benchmark Mode
+
+Benchmark mode runs multiple loops, rotates benchmark order each loop, applies cooldown between tests, and exports CSV with:
+
+- Per-loop normalized scores
+- Averages
+- CV and unstable run counts
+- Primary raw metric samples for each run
 
 ## Running Locally
 
-Serve the files with any static HTTP server (needed for Web Workers):
+Serve over HTTP (required for Worker loading):
 
-```
+```bash
 python3 -m http.server
 ```
 
-Then open `http://localhost:8000`. Click **Run All** or run individual tests.
+Then open `http://localhost:8000`.
 
-## Tech Stack
+## File Layout
 
-- `index.html` — Page structure
-- `css/style.css` — Brutalist glitch art theme
-- `js/main.js` — Orchestrator, UI updates, scoring
-- `js/bench-*.js` — Individual benchmark modules
-- `workers/compute-worker.js` — Web Worker for async benchmark
+- `index.html` — UI and benchmark cards
+- `css/style.css` — styling
+- `js/bench-utils.js` — shared sampling/statistics/seeded RNG helpers
+- `js/main.js` — harness, scoring, category/composite aggregation, benchmark mode, CSV export
+- `js/bench-*.js` — benchmark modules
+- `js/calibration/v2-baselines.json` — normalization baselines
+- `workers/compute-worker.js` — worker compute task implementation

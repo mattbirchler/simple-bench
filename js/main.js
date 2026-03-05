@@ -1,90 +1,69 @@
-window.SimpleBench = { benchmarks: {} };
+window.SimpleBench = window.SimpleBench || { benchmarks: {} };
 
 (function () {
-  const benchOrder = ["dom", "canvas", "compute", "css", "async", "webgl"];
+  const utils = window.SimpleBench.utils;
+
+  const baseBenchOrder = ["dom", "canvas", "compute", "css", "worker", "responsive", "webgl"];
+  const categories = {
+    ui_pipeline: { label: "UI PIPELINE", benches: ["dom", "css"] },
+    graphics: { label: "GRAPHICS", benches: ["canvas", "webgl"] },
+    compute: { label: "COMPUTE", benches: ["compute", "worker"] },
+    responsiveness: { label: "RESPONSIVENESS", benches: ["responsive"] },
+  };
+
   const results = {};
   let running = false;
+  let runCounter = 0;
+  let calibration = { version: "fallback", metrics: {} };
+  let calibrationReady = Promise.resolve();
 
   const runAllBtn = document.getElementById("run-all-btn");
   const compositeScoreEl = document.getElementById("composite-score");
   const compositeProgressEl = document.getElementById("composite-progress");
   const sandbox = document.getElementById("bench-sandbox");
 
-  // Glitch characters for score corruption effect
+  const categoryEls = {
+    ui_pipeline: document.querySelector('[data-category-score="ui_pipeline"]'),
+    graphics: document.querySelector('[data-category-score="graphics"]'),
+    compute: document.querySelector('[data-category-score="compute"]'),
+    responsiveness: document.querySelector('[data-category-score="responsiveness"]'),
+  };
+
   const GLITCH_CHARS = "█▓▒░╪╫╬╧╨╩╦╤╥╙╘╗╖╕╔╓╒║═╏╎╍╌";
 
   function getEls(id) {
     return {
-      card: document.querySelector(`.bench-card[data-bench="${id}"]`),
-      score: document.querySelector(`[data-score-for="${id}"]`),
-      unit: document.querySelector(`[data-unit-for="${id}"]`),
-      progress: document.querySelector(`[data-progress-for="${id}"]`),
-      btn: document.querySelector(`[data-run="${id}"]`),
+      card: document.querySelector('.bench-card[data-bench="' + id + '"]'),
+      score: document.querySelector('[data-score-for="' + id + '"]'),
+      unit: document.querySelector('[data-unit-for="' + id + '"]'),
+      raw: document.querySelector('[data-raw-for="' + id + '"]'),
+      meta: document.querySelector('[data-meta-for="' + id + '"]'),
+      progress: document.querySelector('[data-progress-for="' + id + '"]'),
+      btn: document.querySelector('[data-run="' + id + '"]'),
     };
+  }
+
+  function rotateOrder(order, offset) {
+    const n = order.length;
+    const o = ((offset % n) + n) % n;
+    return order.slice(o).concat(order.slice(0, o));
+  }
+
+  function safeRound(v, digits) {
+    if (!Number.isFinite(v)) return "--";
+    return v.toFixed(digits == null ? 2 : digits);
   }
 
   function setAllButtons(disabled) {
     runAllBtn.disabled = disabled;
     const bmBtn = document.getElementById("bench-mode-btn");
     if (bmBtn) bmBtn.disabled = disabled;
-    benchOrder.forEach((id) => {
-      getEls(id).btn.disabled = disabled;
+    baseBenchOrder.forEach(function (id) {
+      const btn = getEls(id).btn;
+      if (btn) btn.disabled = disabled;
     });
   }
 
-  // Corrupted score animation — numbers glitch through random characters before settling
-  function animateScore(el, target, isComposite) {
-    const duration = 600;
-    const corruptPhase = 0.6; // first 60% is corruption
-    const start = performance.now();
-    const targetStr = String(Math.round(target));
-
-    function tick(now) {
-      const t = Math.min((now - start) / duration, 1);
-
-      if (t < corruptPhase) {
-        // Corruption phase: random glitch chars with occasional real numbers
-        const corruptT = t / corruptPhase;
-        let display = "";
-        for (let i = 0; i < targetStr.length; i++) {
-          if (Math.random() < corruptT * 0.5) {
-            display += targetStr[i];
-          } else {
-            display += GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
-          }
-        }
-        el.textContent = display;
-      } else {
-        // Resolve phase: smooth number count-up with occasional glitch
-        const resolveT = (t - corruptPhase) / (1 - corruptPhase);
-        const current = Math.round(target * resolveT);
-        let display = String(current);
-        // Occasional character corruption during resolve
-        if (Math.random() < (1 - resolveT) * 0.3) {
-          const pos = Math.floor(Math.random() * display.length);
-          display = display.substring(0, pos) +
-            GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)] +
-            display.substring(pos + 1);
-        }
-        el.textContent = display;
-      }
-
-      if (t < 1) {
-        requestAnimationFrame(tick);
-      } else {
-        el.textContent = targetStr;
-        if (isComposite) {
-          el.setAttribute("data-text", targetStr);
-          el.classList.add("has-score");
-        }
-        // Spawn accent burst on score settle
-        spawnBurst(el);
-      }
-    }
-    requestAnimationFrame(tick);
-  }
-
-  // Random color burst effect near an element
   function spawnBurst(targetEl) {
     const colors = ["#ff0055", "#00ffff", "#00ff41", "#ffff00"];
     const rect = targetEl.getBoundingClientRect();
@@ -98,75 +77,274 @@ window.SimpleBench = { benchmarks: {} };
     burst.style.left = (rect.left + rect.width / 2 - size / 2 + (Math.random() - 0.5) * 40) + "px";
     burst.style.top = (rect.top + rect.height / 2 - size / 2 + (Math.random() - 0.5) * 20) + "px";
     document.body.appendChild(burst);
-    burst.addEventListener("animationend", () => burst.remove());
+    burst.addEventListener("animationend", function () { burst.remove(); });
+  }
+
+  function animateScore(el, target, isComposite) {
+    const duration = 550;
+    const corruptPhase = 0.6;
+    const start = performance.now();
+    const targetStr = String(Math.round(target));
+
+    function tick(now) {
+      const t = Math.min((now - start) / duration, 1);
+      if (t < corruptPhase) {
+        const corruptT = t / corruptPhase;
+        let display = "";
+        for (let i = 0; i < targetStr.length; i++) {
+          if (Math.random() < corruptT * 0.5) display += targetStr[i];
+          else display += GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
+        }
+        el.textContent = display;
+      } else {
+        const resolveT = (t - corruptPhase) / (1 - corruptPhase);
+        const current = Math.round(target * resolveT);
+        el.textContent = String(current);
+      }
+
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        el.textContent = targetStr;
+        if (isComposite) {
+          el.setAttribute("data-text", targetStr);
+          el.classList.add("has-score");
+        }
+        spawnBurst(el);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  async function loadCalibration() {
+    try {
+      const res = await fetch("js/calibration/v2-baselines.json", { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      calibration = await res.json();
+    } catch (e) {
+      console.warn("Calibration file unavailable. Falling back to ad-hoc baselines.", e);
+      calibration = { version: "fallback", metrics: {} };
+    }
+  }
+
+  function normalizeMetric(benchId, metricKey, value, metricMeta) {
+    if (!Number.isFinite(value) || value <= 0) return null;
+    const calibKey = benchId + "." + metricKey;
+    const entry = calibration.metrics && calibration.metrics[calibKey];
+
+    if (!entry || !Number.isFinite(entry.baseline) || entry.baseline <= 0) {
+      return null;
+    }
+
+    const direction = entry.direction || (metricMeta && metricMeta.direction) || "higher_is_better";
+    if (direction === "lower_is_better") {
+      return (entry.baseline / value) * 100;
+    }
+    return (value / entry.baseline) * 100;
+  }
+
+  function gm(values) {
+    return utils.geomean(values.filter(function (v) { return Number.isFinite(v) && v > 0; }));
   }
 
   function updateComposite() {
-    const scores = benchOrder.map((id) => results[id]).filter((s) => s != null && s > 0);
-    if (scores.length === 0) return;
-    // Geometric mean — appropriate for combining normalized scores with different scales
-    const geoMean = Math.pow(
-      scores.reduce((product, s) => product * s, 1),
-      1 / scores.length
-    );
-    const display = Math.round(geoMean);
-    animateScore(compositeScoreEl, display, true);
-    compositeProgressEl.style.width = Math.min(geoMean, 120) / 1.2 + "%";
+    const categoryScores = {};
+
+    Object.keys(categories).forEach(function (catId) {
+      const ids = categories[catId].benches;
+      const vals = ids
+        .map(function (id) { return results[id] && results[id].normalized; })
+        .filter(function (v) { return Number.isFinite(v) && v > 0; });
+      const catScore = gm(vals);
+      categoryScores[catId] = catScore > 0 ? catScore : null;
+      if (categoryEls[catId]) {
+        categoryEls[catId].textContent = catScore > 0 ? String(Math.round(catScore)) : "--";
+      }
+    });
+
+    const overallValues = Object.keys(categoryScores)
+      .map(function (k) { return categoryScores[k]; })
+      .filter(function (v) { return Number.isFinite(v) && v > 0; });
+
+    if (!overallValues.length) {
+      compositeScoreEl.textContent = "--";
+      compositeProgressEl.style.width = "0%";
+      return;
+    }
+
+    const composite = gm(overallValues);
+    animateScore(compositeScoreEl, Math.round(composite), true);
+    compositeProgressEl.style.width = Math.min(120, composite) / 1.2 + "%";
   }
 
-  async function runBenchmark(id) {
-    const bench = window.SimpleBench.benchmarks[id];
-    if (!bench) return;
+  function clearCard(id) {
     const els = getEls(id);
+    if (!els.card) return;
+    els.card.classList.remove("complete", "error", "unsupported", "unstable");
+    els.score.textContent = "--";
+    els.unit.textContent = "index";
+    els.raw.textContent = "raw: --";
+    els.meta.textContent = "cv: --";
+    els.progress.style.width = "0%";
+  }
 
-    els.card.classList.remove("complete");
+  function resetAllCards() {
+    baseBenchOrder.forEach(function (id) {
+      clearCard(id);
+      results[id] = null;
+    });
+    Object.keys(categoryEls).forEach(function (catId) {
+      if (categoryEls[catId]) categoryEls[catId].textContent = "--";
+    });
+  }
+
+  async function runBenchmark(id, seed, showSpinner) {
+    const bench = window.SimpleBench.benchmarks[id];
+    const els = getEls(id);
+    if (!bench || !els.card) return null;
+
+    els.card.classList.remove("complete", "error", "unsupported", "unstable");
     els.card.classList.add("running");
-    els.btn.classList.add("running-spinner");
+    if (showSpinner) els.btn.classList.add("running-spinner");
     els.score.textContent = "---";
-    els.unit.textContent = "";
+    els.unit.textContent = "index";
+    els.raw.textContent = "raw: --";
+    els.meta.textContent = "sampling...";
     els.progress.style.width = "0%";
 
     sandbox.innerHTML = "";
 
+    let record = null;
+
     try {
-      const result = await bench.run((progress) => {
-        els.progress.style.width = (progress * 100) + "%";
+      await utils.waitForVisible();
+      const runSeed = seed + ":" + id;
+      const response = await bench.run({
+        warmup: 1,
+        measured: 3,
+        seed: runSeed,
+        fixedResolution: { width: 800, height: 600, dpr: 1 },
+        sandbox: sandbox,
+        onProgress: function (p) {
+          els.progress.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(1) + "%";
+        },
       });
+      await calibrationReady;
 
-      const normalized = bench.normalize(result.rawScore);
-      results[id] = normalized;
+      const primaryMetric = response.primaryMetric || bench.primaryMetric;
+      const primarySummary = response.metrics && response.metrics[primaryMetric];
 
-      els.progress.style.width = "100%";
-      animateScore(els.score, Math.round(normalized), false);
-      els.unit.textContent = result.unit;
-      els.card.classList.add("complete");
+      if (!primarySummary || !Number.isFinite(primarySummary.median)) {
+        els.score.textContent = "SKIP";
+        els.unit.textContent = "unsupported";
+        els.raw.textContent = "raw: unsupported";
+        els.meta.textContent = (response.warnings && response.warnings[0]) || "No primary metric";
+        els.card.classList.add("unsupported");
+        results[id] = null;
+
+        record = {
+          id: id,
+          normalized: null,
+          primaryMetric: primaryMetric,
+          primaryUnit: primarySummary ? primarySummary.unit : "",
+          primaryMedian: NaN,
+          primarySamples: [],
+          cv: NaN,
+          unstable: false,
+          unsupported: true,
+        };
+      } else {
+        const normalized = normalizeMetric(id, primaryMetric, primarySummary.median, primarySummary);
+        const cvPct = primarySummary.cv * 100;
+
+        if (normalized == null) {
+          els.score.textContent = "NA";
+          els.unit.textContent = "index";
+        } else {
+          animateScore(els.score, Math.round(normalized), false);
+          els.unit.textContent = "index";
+        }
+
+        els.raw.textContent = "raw: " + safeRound(primarySummary.median, 2) + " " + primarySummary.unit;
+        els.meta.textContent = "cv: " + safeRound(cvPct, 1) + "% · n=" + primarySummary.samples.length;
+
+        const unstable = !!response.unstable || cvPct > (bench.cvThreshold || 0.08) * 100;
+        if (unstable) {
+          els.card.classList.add("unstable");
+          els.meta.textContent += " · unstable";
+        }
+
+        if (response.warnings && response.warnings.length) {
+          els.meta.textContent += " · " + response.warnings[0];
+        }
+
+        els.card.classList.add("complete");
+        results[id] = {
+          normalized: normalized,
+          category: bench.category,
+        };
+
+        record = {
+          id: id,
+          normalized: normalized,
+          primaryMetric: primaryMetric,
+          primaryUnit: primarySummary.unit,
+          primaryMedian: primarySummary.median,
+          primarySamples: primarySummary.samples || [],
+          cv: primarySummary.cv,
+          iqr: primarySummary.iqr,
+          unstable: unstable,
+          unsupported: false,
+        };
+      }
     } catch (e) {
       els.score.textContent = "ERR";
-      console.error(`Benchmark ${id} failed:`, e);
+      els.unit.textContent = "index";
+      els.raw.textContent = "raw: error";
+      els.meta.textContent = e && e.message ? e.message : "Benchmark failed";
+      els.card.classList.add("error");
+      results[id] = null;
+      console.error("Benchmark failed:", id, e);
     }
 
+    els.progress.style.width = "100%";
     els.card.classList.remove("running");
-    els.btn.classList.remove("running-spinner");
-    bench.cleanup();
+    if (showSpinner) els.btn.classList.remove("running-spinner");
+    if (bench.cleanup) bench.cleanup(sandbox);
     sandbox.innerHTML = "";
+
     updateComposite();
+
+    return record;
+  }
+
+  let cooldownSecs = 8;
+  function doCooldown(seconds) {
+    return utils.sleep(seconds * 1000);
   }
 
   async function runAll() {
     if (running) return;
     running = true;
     setAllButtons(true);
+    resetAllCards();
+
     compositeScoreEl.textContent = "--";
     compositeScoreEl.setAttribute("data-text", "--");
     compositeScoreEl.classList.remove("has-score");
     compositeProgressEl.style.width = "0%";
 
-    for (const id of benchOrder) {
-      results[id] = undefined;
-    }
+    const seed = "runall:" + Date.now() + ":" + runCounter;
+    const order = rotateOrder(baseBenchOrder, runCounter);
+    runCounter++;
 
-    for (const id of benchOrder) {
-      await runBenchmark(id);
+    for (let i = 0; i < order.length; i++) {
+      const id = order[i];
+      await runBenchmark(id, seed, true);
+      if (i < order.length - 1) {
+        await doCooldown(cooldownSecs);
+      }
     }
 
     setAllButtons(false);
@@ -175,26 +353,28 @@ window.SimpleBench = { benchmarks: {} };
 
   runAllBtn.addEventListener("click", runAll);
 
-  benchOrder.forEach((id) => {
+  baseBenchOrder.forEach(function (id) {
     const els = getEls(id);
-    els.btn.addEventListener("click", async () => {
+    if (!els.btn) return;
+    els.btn.addEventListener("click", async function () {
       if (running) return;
       running = true;
       setAllButtons(true);
-      await runBenchmark(id);
+      const seed = "single:" + Date.now();
+      await runBenchmark(id, seed, true);
       setAllButtons(false);
       running = false;
     });
   });
 
-  // ---- Info modal ----
   const benchExplanations = {
-    dom: "Every time a webpage updates \u2014 loading emails, refreshing a feed, filtering a table \u2014 the browser creates and destroys thousands of elements. This test hammers that pipeline to measure how fast your browser can churn through real page updates.",
-    canvas: "Maps, data visualizations, browser games, and image editors all rely on Canvas drawing. This test floods the 2D renderer with thousands of shapes per frame to measure your browser\u2019s raw graphics throughput.",
-    compute: "JavaScript powers everything from spreadsheet formulas to AI inference in the browser. This test runs heavy number-crunching, sorting, and data parsing to measure your engine\u2019s raw computational muscle.",
-    css: "Scrolling, resizing windows, and opening menus all force the browser to recalculate layout. Complex sites with flexbox and grid layouts amplify this cost. This test stress-tests how fast your browser reflows and repaints under pressure.",
-    async: "Modern sites offload heavy work to background threads so the UI stays smooth. This test measures how well your browser parallelizes across CPU cores and how steady your animation frame rate stays under load.",
-    webgl: "3D maps, browser games, product viewers, and GPU-accelerated effects all use WebGL. This test renders thousands of lit triangles with procedural noise, dynamic lighting, and a bloom post-process pass to stress your GPU\u2019s fill rate, shader units, and memory bandwidth.",
+    dom: "Mixed list mutation benchmark for insert/remove/reorder/class toggles and text updates with periodic forced layout reads.",
+    canvas: "Canvas2D draw throughput test measured on fixed 800x600 surfaces with arcs, sprite blits, and text rendering.",
+    compute: "Seeded deterministic compute mix: sieve, sort, matrix multiply, and JSON round-trip with min-duration timing loops.",
+    css: "Three-phase pipeline test: layout invalidation, style recalculation, and compositor animation under concurrent JS pressure.",
+    worker: "Parallel worker throughput sweep over worker counts [1,2,4,max] with throughput scaling and efficiency metrics.",
+    responsive: "Main-thread responsiveness test under worker load and periodic CPU bursts; tracks event-loop lag, rAF jitter, and long tasks.",
+    webgl: "Fixed-tier WebGL2 rendering stress test with weighted FPS and frame-time metrics, using GPU timer queries when available.",
   };
 
   const modal = document.getElementById("info-modal");
@@ -210,12 +390,16 @@ window.SimpleBench = { benchmarks: {} };
     modal.hidden = true;
   }
 
-  modalClose.addEventListener("click", closeModal);
-  modal.addEventListener("click", function (e) {
-    if (e.target === modal) closeModal();
-  });
+  if (modalClose) {
+    modalClose.addEventListener("click", closeModal);
+  }
+  if (modal) {
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+  }
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !modal.hidden) closeModal();
+    if (e.key === "Escape" && modal && !modal.hidden) closeModal();
   });
 
   document.querySelectorAll("[data-info]").forEach(function (btn) {
@@ -224,9 +408,8 @@ window.SimpleBench = { benchmarks: {} };
     });
   });
 
-  // ---- Benchmark Mode ----
   let benchLoops = 5;
-  let cooldownSecs = 30;
+
   const benchModeBtn = document.getElementById("bench-mode-btn");
   const loopCountEl = document.getElementById("loop-count");
   const loopDecBtn = document.getElementById("loop-dec");
@@ -249,16 +432,17 @@ window.SimpleBench = { benchmarks: {} };
   });
   coolDecBtn.addEventListener("click", function () {
     if (cooldownSecs > 1) {
-      cooldownSecs = Math.max(1, cooldownSecs - 5);
+      cooldownSecs = Math.max(1, cooldownSecs - 1);
       coolCountEl.textContent = cooldownSecs;
     }
   });
   coolIncBtn.addEventListener("click", function () {
-    if (cooldownSecs < 60) {
-      cooldownSecs = Math.min(60, cooldownSecs + 5);
+    if (cooldownSecs < 30) {
+      cooldownSecs = Math.min(30, cooldownSecs + 1);
       coolCountEl.textContent = cooldownSecs;
     }
   });
+
   const benchModeOverlay = document.getElementById("bench-mode-overlay");
   const benchModePhase = document.getElementById("bench-mode-phase");
   const benchModeDetail = document.getElementById("bench-mode-detail");
@@ -268,6 +452,7 @@ window.SimpleBench = { benchmarks: {} };
   const benchModeCooldownTimer = document.getElementById("bench-mode-cooldown-timer");
   const benchModeCooldownFill = document.getElementById("bench-mode-cooldown-fill");
   const benchModeCancel = document.getElementById("bench-mode-cancel");
+
   const benchResultsOverlay = document.getElementById("bench-results-overlay");
   const benchResultsBody = document.getElementById("bench-results-body");
   const benchResultsClose = document.getElementById("bench-results-close");
@@ -275,29 +460,29 @@ window.SimpleBench = { benchmarks: {} };
   const benchResultsCopy = document.getElementById("bench-results-copy");
 
   let benchModeCancelled = false;
-  let benchModeData = null; // stored for CSV download
+  let benchModeData = null;
 
   const benchNames = {
     dom: "DOM Manipulation",
-    canvas: "Canvas 2D Rendering",
-    compute: "JavaScript Compute",
-    css: "CSS Layout & Animation",
-    async: "Async & Concurrency",
-    webgl: "WebGL GPU Rendering",
+    canvas: "Canvas 2D",
+    compute: "JS Compute",
+    css: "CSS Pipeline",
+    worker: "Worker Throughput",
+    responsive: "Responsiveness",
+    webgl: "WebGL GPU",
   };
 
-  function cooldown(seconds) {
-    return new Promise((resolve) => {
+  function cooldownWithOverlay(seconds) {
+    return new Promise(function (resolve) {
       benchModeCooldown.hidden = false;
       benchModeCooldownTimer.textContent = seconds;
       benchModeCooldownFill.style.transition = "none";
       benchModeCooldownFill.style.width = "100%";
-      // Force reflow so transition reset takes effect
       benchModeCooldownFill.offsetWidth;
       benchModeCooldownFill.style.transition = "width 1s linear";
 
       let remaining = seconds;
-      const interval = setInterval(() => {
+      const interval = setInterval(function () {
         if (benchModeCancelled) {
           clearInterval(interval);
           benchModeCooldown.hidden = true;
@@ -318,44 +503,52 @@ window.SimpleBench = { benchmarks: {} };
 
   async function runBenchmarkMode() {
     if (running) return;
+
     running = true;
     benchModeCancelled = false;
     setAllButtons(true);
     benchModeBtn.disabled = true;
 
+    resetAllCards();
+
     benchModeOverlay.hidden = false;
     benchModeCooldown.hidden = true;
 
-    // allResults[loop][benchId] = normalized score
     const allResults = [];
-    const totalSteps = benchLoops * benchOrder.length;
+    const allDetails = [];
+    const totalSteps = benchLoops * baseBenchOrder.length;
     let currentStep = 0;
 
     for (let loop = 0; loop < benchLoops; loop++) {
       allResults.push({});
+      allDetails.push({});
 
-      for (let b = 0; b < benchOrder.length; b++) {
+      const order = rotateOrder(baseBenchOrder, loop);
+      const seed = "benchmode:" + Date.now() + ":" + loop;
+
+      for (let b = 0; b < order.length; b++) {
         if (benchModeCancelled) break;
 
-        const id = benchOrder[b];
+        const id = order[b];
         benchModePhase.textContent = benchNames[id];
-        benchModeDetail.textContent = "LOOP " + (loop + 1) + "/" + benchLoops + " \u2022 TEST " + (b + 1) + "/" + benchOrder.length;
+        benchModeDetail.textContent = "LOOP " + (loop + 1) + "/" + benchLoops + " • TEST " + (b + 1) + "/" + order.length;
+
         const pct = Math.round((currentStep / totalSteps) * 100);
         benchModeProgress.style.width = pct + "%";
         benchModeProgressLabel.textContent = pct + "%";
 
-        await runBenchmark(id);
-        allResults[loop][id] = results[id];
+        const rec = await runBenchmark(id, seed, false);
+        allDetails[loop][id] = rec;
+        allResults[loop][id] = rec ? rec.normalized : null;
+
         currentStep++;
 
         if (benchModeCancelled) break;
-
-        // Cooldown between tests (skip after the very last test)
-        const isLast = (loop === benchLoops - 1 && b === benchOrder.length - 1);
+        const isLast = loop === benchLoops - 1 && b === order.length - 1;
         if (!isLast) {
           benchModePhase.textContent = "COOLDOWN";
-          benchModeDetail.textContent = "THERMAL THROTTLE PREVENTION";
-          await cooldown(cooldownSecs);
+          benchModeDetail.textContent = "THERMAL STABILIZATION";
+          await cooldownWithOverlay(cooldownSecs);
         }
       }
 
@@ -371,79 +564,122 @@ window.SimpleBench = { benchmarks: {} };
     running = false;
 
     if (!benchModeCancelled) {
-      showBenchmarkResults(allResults);
+      showBenchmarkResults(allResults, allDetails);
     }
   }
 
-  function showBenchmarkResults(allResults) {
+  function showBenchmarkResults(allResults, allDetails) {
     const completedLoops = allResults.length;
 
-    // Calculate averages
     const averages = {};
-    benchOrder.forEach((id) => {
-      const scores = allResults.map((loop) => loop[id]).filter((s) => s != null && s > 0);
-      if (scores.length > 0) {
-        averages[id] = scores.reduce((a, b) => a + b, 0) / scores.length;
-      }
+    const avgCv = {};
+    const unstableCounts = {};
+
+    baseBenchOrder.forEach(function (id) {
+      const vals = allResults
+        .map(function (loop) { return loop[id]; })
+        .filter(function (v) { return Number.isFinite(v) && v > 0; });
+      averages[id] = vals.length ? (vals.reduce(function (a, b) { return a + b; }, 0) / vals.length) : null;
+
+      const cvs = allDetails
+        .map(function (loop) { return loop[id] && loop[id].cv; })
+        .filter(function (v) { return Number.isFinite(v); });
+      avgCv[id] = cvs.length ? (cvs.reduce(function (a, b) { return a + b; }, 0) / cvs.length) : null;
+
+      unstableCounts[id] = allDetails.filter(function (loop) {
+        return loop[id] && loop[id].unstable;
+      }).length;
     });
 
-    // Composite average (geometric mean of averages)
-    const avgValues = benchOrder.map((id) => averages[id]).filter((s) => s != null && s > 0);
-    const compositeAvg = avgValues.length > 0
-      ? Math.pow(avgValues.reduce((p, s) => p * s, 1), 1 / avgValues.length)
-      : 0;
-
-    // Build results HTML
-    let tableRows = "";
-    benchOrder.forEach((id) => {
-      let cells = '<td>' + benchNames[id] + '</td>';
-      for (let loop = 0; loop < completedLoops; loop++) {
-        const val = allResults[loop][id];
-        cells += '<td class="num">' + (val != null ? Math.round(val) : "-") + '</td>';
-      }
-      cells += '<td class="num avg">' + (averages[id] != null ? Math.round(averages[id]) : "-") + '</td>';
-      tableRows += '<tr>' + cells + '</tr>';
-    });
+    const compositeAvg = gm(baseBenchOrder.map(function (id) { return averages[id]; }));
 
     let loopHeaders = "";
     for (let i = 0; i < completedLoops; i++) {
-      loopHeaders += '<th class="num">R' + (i + 1) + '</th>';
+      loopHeaders += '<th class="num">R' + (i + 1) + "</th>";
     }
+
+    let rows = "";
+    baseBenchOrder.forEach(function (id) {
+      let cells = "<td>" + benchNames[id] + "</td>";
+      for (let loop = 0; loop < completedLoops; loop++) {
+        const val = allResults[loop][id];
+        cells += '<td class="num">' + (Number.isFinite(val) ? Math.round(val) : "-") + "</td>";
+      }
+      cells += '<td class="num avg">' + (Number.isFinite(averages[id]) ? Math.round(averages[id]) : "-") + "</td>";
+      cells += '<td class="num">' + (Number.isFinite(avgCv[id]) ? (avgCv[id] * 100).toFixed(1) + "%" : "-") + "</td>";
+      cells += '<td class="num">' + unstableCounts[id] + "</td>";
+      rows += "<tr>" + cells + "</tr>";
+    });
 
     benchResultsBody.innerHTML =
       '<div class="bench-results-composite">' +
         '<div class="bench-results-composite-label">COMPOSITE AVERAGE</div>' +
-        '<div class="bench-results-composite-score">' + Math.round(compositeAvg) + '</div>' +
-      '</div>' +
+        '<div class="bench-results-composite-score">' + (compositeAvg ? Math.round(compositeAvg) : "-") + "</div>" +
+      "</div>" +
       '<table class="bench-results-table">' +
-        '<thead><tr><th>TEST</th>' + loopHeaders + '<th class="num">AVG</th></tr></thead>' +
-        '<tbody>' + tableRows + '</tbody>' +
-      '</table>';
+        "<thead><tr><th>TEST</th>" + loopHeaders + '<th class="num">AVG</th><th class="num">CV</th><th class="num">UNSTABLE</th></tr></thead>' +
+        "<tbody>" + rows + "</tbody>" +
+      "</table>";
 
-    // Store data for CSV
-    benchModeData = { allResults, averages, compositeAvg, completedLoops };
+    benchModeData = {
+      allResults: allResults,
+      allDetails: allDetails,
+      averages: averages,
+      avgCv: avgCv,
+      compositeAvg: compositeAvg,
+      completedLoops: completedLoops,
+    };
 
     benchResultsOverlay.hidden = false;
   }
 
+  function csvEscape(value) {
+    const s = String(value == null ? "" : value);
+    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
   function buildCSV() {
     if (!benchModeData) return "";
-    const { allResults, averages, completedLoops } = benchModeData;
 
+    const loops = benchModeData.completedLoops;
     let csv = "Test";
-    for (let i = 0; i < completedLoops; i++) {
-      csv += ",Run " + (i + 1);
-    }
-    csv += ",Average\n";
+    for (let i = 0; i < loops; i++) csv += ",Run " + (i + 1);
+    csv += ",Average,CV,Unstable Runs,Primary Metric,Primary Unit,Raw Samples By Run\n";
 
-    benchOrder.forEach((id) => {
-      csv += benchNames[id];
-      for (let loop = 0; loop < completedLoops; loop++) {
-        const val = allResults[loop][id];
-        csv += "," + (val != null ? val.toFixed(2) : "");
+    baseBenchOrder.forEach(function (id) {
+      const row = [benchNames[id]];
+      for (let loop = 0; loop < loops; loop++) {
+        const v = benchModeData.allResults[loop][id];
+        row.push(Number.isFinite(v) ? v.toFixed(2) : "");
       }
-      csv += "," + (averages[id] != null ? averages[id].toFixed(2) : "");
-      csv += "\n";
+
+      row.push(Number.isFinite(benchModeData.averages[id]) ? benchModeData.averages[id].toFixed(2) : "");
+      row.push(Number.isFinite(benchModeData.avgCv[id]) ? (benchModeData.avgCv[id] * 100).toFixed(2) + "%" : "");
+
+      let unstableCount = 0;
+      for (let loop = 0; loop < loops; loop++) {
+        const rec = benchModeData.allDetails[loop][id];
+        if (rec && rec.unstable) unstableCount++;
+      }
+      row.push(String(unstableCount));
+
+      const detail0 = benchModeData.allDetails[0] && benchModeData.allDetails[0][id];
+      row.push(detail0 ? detail0.primaryMetric : "");
+      row.push(detail0 ? detail0.primaryUnit : "");
+
+      const rawByRun = [];
+      for (let loop = 0; loop < loops; loop++) {
+        const rec = benchModeData.allDetails[loop][id];
+        if (!rec || !rec.primarySamples || !rec.primarySamples.length) {
+          rawByRun.push("");
+        } else {
+          rawByRun.push(rec.primarySamples.map(function (v) { return v.toFixed(3); }).join("|"));
+        }
+      }
+      row.push(rawByRun.join(" ; "));
+
+      csv += row.map(csvEscape).join(",") + "\n";
     });
 
     return csv;
@@ -456,7 +692,7 @@ window.SimpleBench = { benchmarks: {} };
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "simplebench-results-" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.download = "simplebench-v2-results-" + new Date().toISOString().slice(0, 10) + ".csv";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -469,7 +705,9 @@ window.SimpleBench = { benchmarks: {} };
     navigator.clipboard.writeText(csv).then(function () {
       const inner = benchResultsCopy.querySelector(".btn-inner");
       inner.textContent = "COPIED";
-      setTimeout(function () { inner.textContent = "COPY CSV"; }, 1500);
+      setTimeout(function () {
+        inner.textContent = "COPY CSV";
+      }, 1200);
     });
   }
 
@@ -486,24 +724,22 @@ window.SimpleBench = { benchmarks: {} };
   benchResultsCsv.addEventListener("click", downloadCSV);
   benchResultsCopy.addEventListener("click", copyCSV);
 
-  // ---- Ambient glitch: occasional random screen tear ----
   function randomScreenTear() {
     if (running) {
       const tear = document.createElement("div");
-      tear.style.cssText = `
-        position: fixed;
-        left: 0; right: 0;
-        height: ${2 + Math.random() * 8}px;
-        top: ${Math.random() * 100}%;
-        background: rgba(${Math.random() > 0.5 ? "255,0,85" : "0,255,255"}, 0.15);
-        pointer-events: none;
-        z-index: 9997;
-        mix-blend-mode: screen;
-      `;
+      tear.style.cssText =
+        "position: fixed; left: 0; right: 0;" +
+        "height: " + (2 + Math.random() * 8) + "px;" +
+        "top: " + (Math.random() * 100) + "%;" +
+        "background: rgba(" + (Math.random() > 0.5 ? "255,0,85" : "0,255,255") + ", 0.15);" +
+        "pointer-events: none; z-index: 9997; mix-blend-mode: screen;";
       document.body.appendChild(tear);
-      setTimeout(() => tear.remove(), 80 + Math.random() * 120);
+      setTimeout(function () { tear.remove(); }, 100);
     }
-    setTimeout(randomScreenTear, 200 + Math.random() * 1500);
+    setTimeout(randomScreenTear, 300 + Math.random() * 1200);
   }
   randomScreenTear();
+
+  resetAllCards();
+  calibrationReady = loadCalibration();
 })();

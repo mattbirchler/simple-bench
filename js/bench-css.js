@@ -1,187 +1,207 @@
 (function () {
-  const sandbox = document.getElementById("bench-sandbox");
-  const LAYOUT_ELEMENTS = 1500;
-  const LAYOUT_ITERATIONS = 600;
-  const STYLE_ELEMENTS = 900;
-  const STYLE_ITERATIONS = 1500;
-  const VIS_BLOCKS = 40;
+  const utils = window.SimpleBench.utils;
 
-  function buildLayoutTree(container) {
+  function ensureCssClasses() {
+    if (document.getElementById("sb2-css-bench-style")) return;
+    const style = document.createElement("style");
+    style.id = "sb2-css-bench-style";
+    style.textContent = [
+      ".sb2-css-cell { width: 20px; height: 20px; margin: 1px; background: #1f1f1f; }",
+      ".sb2-a { color: #9aa; background: #181818; }",
+      ".sb2-b { color: #ccd; background: #202020; }",
+      ".sb2-c { color: #eef; background: #282828; }",
+      ".sb2-anim { transition: transform 120ms linear, opacity 120ms linear; }",
+    ].join("\n");
+    document.head.appendChild(style);
+  }
+
+  function layoutPhase(container, durationMs) {
+    const wrappers = [];
     let parent = container;
-    let count = 0;
-    const depth = 5;
-    const perLevel = Math.ceil(LAYOUT_ELEMENTS / depth);
-
-    for (let d = 0; d < depth; d++) {
-      const wrapper = document.createElement("div");
-      wrapper.style.display = d % 2 === 0 ? "flex" : "grid";
-      wrapper.style.flexDirection = "row";
-      wrapper.style.gridTemplateColumns = "repeat(auto-fill, 50px)";
-      wrapper.style.padding = "2px";
-      for (let i = 0; i < perLevel && count < LAYOUT_ELEMENTS; i++, count++) {
-        const child = document.createElement("div");
-        child.className = "layout-item";
-        child.style.width = "40px";
-        child.style.height = "20px";
-        child.style.background = "#333";
-        child.style.margin = "1px";
-        wrapper.appendChild(child);
-      }
-      parent.appendChild(wrapper);
-      parent = wrapper;
+    for (let d = 0; d < 4; d++) {
+      const wrap = document.createElement("div");
+      wrap.style.display = d % 2 === 0 ? "flex" : "grid";
+      wrap.style.flexWrap = "wrap";
+      wrap.style.gridTemplateColumns = "repeat(20, 22px)";
+      wrap.style.gap = "2px";
+      parent.appendChild(wrap);
+      wrappers.push(wrap);
+      parent = wrap;
     }
+
+    for (let i = 0; i < 700; i++) {
+      const c = document.createElement("div");
+      c.className = "sb2-css-cell";
+      wrappers[i % wrappers.length].appendChild(c);
+    }
+
+    let ops = 0;
+    const start = performance.now();
+    while (performance.now() - start < durationMs) {
+      const step = ops % 2;
+      for (let i = 0; i < wrappers.length; i++) {
+        const w = wrappers[i];
+        w.style.display = step === 0 ? "flex" : "grid";
+        w.style.gridTemplateColumns = step === 0 ? "repeat(18, 22px)" : "repeat(22, 22px)";
+        w.style.justifyContent = step === 0 ? "flex-start" : "center";
+        ops += 3;
+      }
+      void container.offsetHeight;
+      ops++;
+    }
+
+    const elapsed = performance.now() - start;
+    return (ops / elapsed) * 1000;
+  }
+
+  function stylePhase(container, durationMs) {
+    const nodes = [];
+    for (let i = 0; i < 900; i++) {
+      const d = document.createElement("div");
+      d.className = "sb2-css-cell sb2-a";
+      d.style.position = "absolute";
+      d.style.left = (i % 30) * 24 + "px";
+      d.style.top = Math.floor(i / 30) * 22 + "px";
+      container.appendChild(d);
+      nodes.push(d);
+    }
+
+    let ops = 0;
+    const start = performance.now();
+    while (performance.now() - start < durationMs) {
+      const mode = ops % 3;
+      const cls = mode === 0 ? "sb2-a" : mode === 1 ? "sb2-b" : "sb2-c";
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        n.classList.remove("sb2-a", "sb2-b", "sb2-c");
+        n.classList.add(cls);
+        n.style.borderRadius = (mode * 3) + "px";
+        ops += 3;
+      }
+      void container.offsetWidth;
+      ops++;
+    }
+
+    const elapsed = performance.now() - start;
+    return (ops / elapsed) * 1000;
+  }
+
+  function compositorPhase(container, durationMs, burnBudgetMs) {
+    const animated = [];
+    for (let i = 0; i < 140; i++) {
+      const el = document.createElement("div");
+      el.className = "sb2-css-cell sb2-anim";
+      el.style.position = "absolute";
+      el.style.left = (i % 20) * 28 + "px";
+      el.style.top = Math.floor(i / 20) * 26 + "px";
+      container.appendChild(el);
+      animated.push(el);
+    }
+
+    const frameTimes = [];
+    const start = performance.now();
+    let frame = 0;
+
+    while (performance.now() - start < durationMs) {
+      const frameStart = performance.now();
+
+      for (let i = 0; i < animated.length; i++) {
+        const a = animated[i];
+        const x = Math.sin((frame + i) * 0.09) * 14;
+        const y = Math.cos((frame + i) * 0.07) * 10;
+        a.style.transform = "translate(" + x.toFixed(2) + "px," + y.toFixed(2) + "px)";
+        a.style.opacity = String(0.5 + (Math.sin((frame + i) * 0.03) + 1) * 0.25);
+      }
+
+      // Time-based CPU burn keeps pressure proportional to device speed.
+      let burn = 0;
+      const burnStart = performance.now();
+      while (performance.now() - burnStart < burnBudgetMs) {
+        burn += Math.sqrt((frame + 1) * 13.37 + burn);
+      }
+      if (burn < 0) container.dataset.burn = "1";
+
+      frameTimes.push(performance.now() - frameStart);
+      frame++;
+    }
+
+    const dropped = frameTimes.filter(function (ms) { return ms > 20; }).length;
+    return frameTimes.length ? (dropped / frameTimes.length) * 100 : 100;
   }
 
   window.SimpleBench.benchmarks.css = {
-    name: "CSS Layout & Animation",
-    description: "600 forced reflows on 1,500 nested flex/grid elements + 1,500 style recalcs on 900 elements",
-
-    _preview: null,
-
-    run: async function (onProgress) {
-      // Create preview with mini blocks
-      const preview = document.createElement("div");
-      preview.className = "bench-preview";
-      let blocksHTML = "";
-      const colors = ["#00ffff", "#ff0055", "#00ff41", "#ffff00", "#8800ff"];
-      for (let i = 0; i < VIS_BLOCKS; i++) {
-        const col = colors[i % colors.length];
-        const size = 8 + Math.random() * 16;
-        blocksHTML += '<div class="css-mini-block" id="cssb-' + i + '" style="' +
-          "width:" + size + "px;height:" + size + "px;" +
-          "left:" + (Math.random() * 230) + "px;" +
-          "top:" + (Math.random() * 100) + "px;" +
-          "border-color:" + col + ";" +
-          "background:" + col + "22;" +
-          '"></div>';
-      }
-      preview.innerHTML = `
-        <div class="bench-preview-header">
-          <span class="bench-preview-label">CSS LAYOUT // LIVE</span>
-          <span class="bench-preview-stats" id="css-stats">PHASE 1: REFLOW</span>
-        </div>
-        <div class="bench-preview-body">
-          <div class="css-mini-viewport">${blocksHTML}</div>
-        </div>
-        <div class="bench-preview-scanlines"></div>
-      `;
-      document.body.appendChild(preview);
-      this._preview = preview;
-
-      const statsDisplay = document.getElementById("css-stats");
-      const visBlocks = [];
-      for (let i = 0; i < VIS_BLOCKS; i++) {
-        visBlocks.push(document.getElementById("cssb-" + i));
-      }
-
-      // Phase 1: Layout thrash
-      const layoutContainer = document.createElement("div");
-      sandbox.appendChild(layoutContainer);
-      buildLayoutTree(layoutContainer);
-
-      const wrappers = layoutContainer.querySelectorAll("div[style]");
-      let layoutElapsed = 0;
-
-      for (let i = 0; i < LAYOUT_ITERATIONS; i++) {
-        const start = performance.now();
-        for (let j = 0; j < wrappers.length; j++) {
-          const w = wrappers[j];
-          w.style.flexDirection = i % 2 === 0 ? "column" : "row";
-          w.style.justifyContent = i % 3 === 0 ? "center" : "flex-start";
-          w.style.gridTemplateColumns =
-            i % 2 === 0 ? "repeat(auto-fill, 60px)" : "repeat(auto-fill, 40px)";
-        }
-        layoutContainer.offsetHeight;
-        layoutElapsed += performance.now() - start;
-
-        if (i % 20 === 0) {
-          onProgress((i / LAYOUT_ITERATIONS) * 0.5);
-          statsDisplay.textContent = "REFLOW " + i + "/" + LAYOUT_ITERATIONS;
-
-          // Animate mini blocks — shuffle positions
-          for (let b = 0; b < visBlocks.length; b++) {
-            const col = i % 2 === 0;
-            visBlocks[b].style.left = (col ? (b % 10) * 25 : Math.random() * 230) + "px";
-            visBlocks[b].style.top = (col ? Math.floor(b / 10) * 28 : Math.random() * 100) + "px";
-          }
-
-          await new Promise((r) => setTimeout(r, 0));
-        }
-      }
-
-      const layoutOps = (LAYOUT_ITERATIONS / layoutElapsed) * 1000;
-      sandbox.innerHTML = "";
-
-      // Phase 2: Style recalculation
-      statsDisplay.textContent = "PHASE 2: STYLE RECALC";
-      const styleContainer = document.createElement("div");
-      styleContainer.style.position = "relative";
-      styleContainer.style.width = "800px";
-      styleContainer.style.height = "600px";
-      sandbox.appendChild(styleContainer);
-
-      const divs = [];
-      for (let i = 0; i < STYLE_ELEMENTS; i++) {
-        const div = document.createElement("div");
-        div.style.position = "absolute";
-        div.style.width = "20px";
-        div.style.height = "20px";
-        div.style.background = "#333";
-        div.style.left = Math.random() * 780 + "px";
-        div.style.top = Math.random() * 580 + "px";
-        styleContainer.appendChild(div);
-        divs.push(div);
-      }
-
-      let styleElapsed = 0;
-
-      for (let i = 0; i < STYLE_ITERATIONS; i++) {
-        const start = performance.now();
-        for (let j = 0; j < divs.length; j++) {
-          const d = divs[j];
-          d.style.transform = `translate(${Math.sin(i + j) * 20}px, ${Math.cos(i + j) * 20}px) rotate(${i * 2}deg)`;
-          d.style.backgroundColor = i % 2 === 0 ? "#444" : "#222";
-          d.style.width = (18 + (i % 4)) + "px";
-        }
-        styleContainer.offsetHeight;
-        styleElapsed += performance.now() - start;
-
-        if (i % 50 === 0) {
-          onProgress(0.5 + (i / STYLE_ITERATIONS) * 0.5);
-          statsDisplay.textContent = "RECALC " + i + "/" + STYLE_ITERATIONS;
-
-          // Animate mini blocks with transforms
-          for (let b = 0; b < visBlocks.length; b++) {
-            visBlocks[b].style.transform = "translate(" +
-              (Math.sin(i + b) * 15) + "px," +
-              (Math.cos(i + b) * 10) + "px) rotate(" + (i * 3) + "deg)";
-            const w = 8 + (i % 6) + Math.random() * 10;
-            visBlocks[b].style.width = w + "px";
-            visBlocks[b].style.height = w + "px";
-          }
-
-          await new Promise((r) => setTimeout(r, 0));
-        }
-      }
-
-      const styleOps = (STYLE_ITERATIONS / styleElapsed) * 1000;
-      const rawScore = layoutOps * 0.4 + styleOps * 0.6;
-      statsDisplay.textContent = rawScore.toFixed(0) + " ops/s";
-
-      return { rawScore, unit: "ops/s" };
+    id: "css",
+    name: "CSS Layout Pipeline",
+    category: "ui_pipeline",
+    primaryMetric: "pipeline_score",
+    cvThreshold: 0.07,
+    metricDefs: {
+      layout_ops_per_sec: { unit: "ops/s", direction: "higher_is_better" },
+      style_recalc_ops_per_sec: { unit: "ops/s", direction: "higher_is_better" },
+      dropped_frame_pct: { unit: "%", direction: "lower_is_better" },
+      pipeline_score: { unit: "score", direction: "higher_is_better" },
     },
 
-    cleanup: function () {
-      if (this._preview) {
-        this._preview.classList.add("bench-preview-exit");
-        const el = this._preview;
-        setTimeout(() => el.remove(), 300);
-        this._preview = null;
-      }
+    run: async function (ctx) {
+      ensureCssClasses();
+      const seedBase = ctx.seed + ":css:";
+
+      const protocolResult = await utils.runSamplingProtocol({
+        warmup: ctx.warmup,
+        measured: ctx.measured,
+        maxReruns: 2,
+        cvThreshold: this.cvThreshold,
+        primaryMetric: this.primaryMetric,
+        onProgress: ctx.onProgress,
+        measureSample: async ({ sampleIndex }) => {
+          const _rng = utils.createRng(utils.hashString(seedBase + sampleIndex));
+          if (!_rng) return null;
+
+          const holder = document.createElement("div");
+          holder.style.position = "relative";
+          holder.style.width = "800px";
+          holder.style.height = "600px";
+          holder.style.overflow = "hidden";
+
+          ctx.sandbox.innerHTML = "";
+          ctx.sandbox.appendChild(holder);
+
+          const layoutOps = layoutPhase(holder, 520);
+          holder.innerHTML = "";
+          const styleOps = stylePhase(holder, 520);
+          holder.innerHTML = "";
+          const droppedPct = compositorPhase(holder, 820, 2.0);
+
+          const pipelineScore = ((layoutOps + styleOps) / 2) / (1 + droppedPct / 100);
+
+          ctx.sandbox.innerHTML = "";
+
+          return {
+            layout_ops_per_sec: layoutOps,
+            style_recalc_ops_per_sec: styleOps,
+            dropped_frame_pct: droppedPct,
+            pipeline_score: pipelineScore,
+          };
+        },
+      });
+
+      const metrics = utils.buildMetricMap(protocolResult.samples, this.metricDefs);
+
+      return {
+        metrics: metrics,
+        samples: protocolResult.samples,
+        metadata: {
+          benchmark: "css",
+          phases: ["layout", "style", "compositor"],
+        },
+        warnings: protocolResult.warnings,
+        unstable: protocolResult.unstable,
+        primaryMetric: this.primaryMetric,
+      };
     },
 
-    normalize: function (rawScore) {
-      return (rawScore / 1500) * 100;
+    cleanup: function (sandbox) {
+      if (sandbox) sandbox.innerHTML = "";
     },
   };
 })();

@@ -1,0 +1,13 @@
+{
+  "version": "v2",
+  "notes": "Baselines target mid-range modern hardware; tune after repeatability matrix runs.",
+  "metrics": {
+    "dom.ops_per_sec": { "baseline": 15000, "direction": "higher_is_better" },
+    "canvas.draw_calls_per_sec": { "baseline": 85000, "direction": "higher_is_better" },
+    "compute.compute_geomean": { "baseline": 10, "direction": "higher_is_better" },
+    "css.pipeline_score": { "baseline": 26000, "direction": "higher_is_better" },
+    "worker.throughput_scaling_auc": { "baseline": 2.4, "direction": "higher_is_better" },
+    "responsive.responsiveness_index": { "baseline": 65, "direction": "higher_is_better" },
+    "webgl.fps_tier_weighted": { "baseline": 52, "direction": "higher_is_better" }
+  }
+}

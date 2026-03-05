@@ -326,6 +326,33 @@ main {
   opacity: 0.6;
 }
 
+.category-scores {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.category-score-pill {
+  border: 1px solid var(--mid-gray);
+  background: #101010;
+  padding: 0.35rem 0.45rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--gray);
+  text-transform: uppercase;
+}
+
+.category-score-pill span:last-child {
+  color: var(--white);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- PROGRESS BARS ---- */
 .progress-bar {
   height: 4px;
@@ -465,6 +492,30 @@ main {
 .bench-card.complete .bench-score {
   color: var(--toxic);
   text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+}
+
+.bench-card.error::before {
+  background: var(--hot-pink);
+}
+
+.bench-card.error .bench-score {
+  color: var(--hot-pink);
+}
+
+.bench-card.unsupported::before {
+  background: var(--yellow);
+}
+
+.bench-card.unsupported .bench-score {
+  color: var(--yellow);
+}
+
+.bench-card.unstable {
+  border-color: #8c6d00;
+}
+
+.bench-card.unstable::before {
+  background: #ffb000;
 }
 
 /* ---- INFO BUTTON ---- */
@@ -652,6 +703,24 @@ main {
   color: var(--gray);
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.bench-raw {
+  display: block;
+  margin-top: 0.22rem;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--cyan);
+  letter-spacing: 0.05em;
+}
+
+.bench-meta {
+  display: block;
+  margin-top: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--gray);
+  letter-spacing: 0.04em;
 }
 
 /* ---- SPINNER (running state) ---- */
@@ -1284,6 +1353,7 @@ footer {
   .header-meta { display: none; }
   main { padding: 2rem 1rem 3rem; }
   .composite-number { font-size: 3rem; }
+  .category-scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bench-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
   .bench-controls { width: 100%; justify-content: space-between; }
   .bench-index { font-size: 2.5rem; }

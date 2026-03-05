@@ -10,18 +10,16 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Scanline overlay -->
   <div class="scanlines" aria-hidden="true"></div>
-  <!-- Noise texture overlay -->
   <div class="noise" aria-hidden="true"></div>
 
   <header>
     <div class="header-inner">
       <h1 class="glitch-text" data-text="SIMPLEBENCH">SIMPLEBENCH</h1>
       <div class="header-meta">
-        <span class="version-tag">v0.0.1</span>
+        <span class="version-tag">v2.0.0</span>
         <span class="separator">//</span>
-        <span class="tagline">BREAK YOUR BROWSER</span>
+        <span class="tagline">LOW VARIANCE MODE</span>
       </div>
       <div class="header-buttons">
         <button id="run-all-btn" class="btn btn-primary">
@@ -41,7 +39,7 @@
           </div>
           <div class="bench-loop-control">
             <button class="bench-loop-btn" id="cool-dec">&minus;</button>
-            <span class="bench-loop-value" id="cool-count">30</span>
+            <span class="bench-loop-value" id="cool-count">8</span>
             <button class="bench-loop-btn" id="cool-inc">+</button>
             <span class="bench-loop-label">SEC</span>
           </div>
@@ -63,6 +61,12 @@
         <div id="composite-progress" class="progress-fill"></div>
         <div class="progress-noise" aria-hidden="true"></div>
       </div>
+      <div class="category-scores">
+        <div class="category-score-pill"><span>UI</span><span data-category-score="ui_pipeline">--</span></div>
+        <div class="category-score-pill"><span>GRAPHICS</span><span data-category-score="graphics">--</span></div>
+        <div class="category-score-pill"><span>COMPUTE</span><span data-category-score="compute">--</span></div>
+        <div class="category-score-pill"><span>RESP</span><span data-category-score="responsiveness">--</span></div>
+      </div>
     </section>
 
     <section id="benchmarks">
@@ -71,20 +75,20 @@
         <div class="bench-header">
           <div class="bench-info">
             <h2>DOM MANIPULATION</h2>
-            <p>30 cycles of create/update/swap/delete on 3,000 rows (12,000 cells)</p>
+            <p>Mixed list insert/remove/reorder + class/text updates with controlled layout checkpoints</p>
           </div>
           <div class="bench-controls">
             <div class="score-block">
               <span class="bench-score" data-score-for="dom">--</span>
-              <span class="bench-unit" data-unit-for="dom"></span>
+              <span class="bench-unit" data-unit-for="dom">index</span>
+              <span class="bench-raw" data-raw-for="dom">raw: --</span>
+              <span class="bench-meta" data-meta-for="dom">cv: --</span>
             </div>
             <button class="btn btn-run" data-run="dom">EXEC</button>
             <button class="btn btn-info" data-info="dom">?</button>
           </div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-progress-for="dom"></div>
-        </div>
+        <div class="progress-bar"><div class="progress-fill" data-progress-for="dom"></div></div>
       </div>
 
       <div class="bench-card" data-bench="canvas">
@@ -92,20 +96,20 @@
         <div class="bench-header">
           <div class="bench-info">
             <h2>CANVAS 2D RENDERING</h2>
-            <p>Render 1,500 frames of 4,500 arc sprites — raw draw throughput</p>
+            <p>Fixed-duration draw mix (paths + sprite blits + text), measured at 800x600 without preview bias</p>
           </div>
           <div class="bench-controls">
             <div class="score-block">
               <span class="bench-score" data-score-for="canvas">--</span>
-              <span class="bench-unit" data-unit-for="canvas"></span>
+              <span class="bench-unit" data-unit-for="canvas">index</span>
+              <span class="bench-raw" data-raw-for="canvas">raw: --</span>
+              <span class="bench-meta" data-meta-for="canvas">cv: --</span>
             </div>
             <button class="btn btn-run" data-run="canvas">EXEC</button>
             <button class="btn btn-info" data-info="canvas">?</button>
           </div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-progress-for="canvas"></div>
-        </div>
+        <div class="progress-bar"><div class="progress-fill" data-progress-for="canvas"></div></div>
       </div>
 
       <div class="bench-card" data-bench="compute">
@@ -113,89 +117,108 @@
         <div class="bench-header">
           <div class="bench-info">
             <h2>JAVASCRIPT COMPUTE</h2>
-            <p>Prime sieve to 3M, sort 300K floats, 350x350 matrix multiply, 50KB JSON x60 parse/stringify</p>
+            <p>Seeded sieve/sort/matrix/json tasks with min-duration timing and geometric aggregation</p>
           </div>
           <div class="bench-controls">
             <div class="score-block">
               <span class="bench-score" data-score-for="compute">--</span>
-              <span class="bench-unit" data-unit-for="compute"></span>
+              <span class="bench-unit" data-unit-for="compute">index</span>
+              <span class="bench-raw" data-raw-for="compute">raw: --</span>
+              <span class="bench-meta" data-meta-for="compute">cv: --</span>
             </div>
             <button class="btn btn-run" data-run="compute">EXEC</button>
             <button class="btn btn-info" data-info="compute">?</button>
           </div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-progress-for="compute"></div>
-        </div>
+        <div class="progress-bar"><div class="progress-fill" data-progress-for="compute"></div></div>
       </div>
 
       <div class="bench-card" data-bench="css">
         <div class="bench-index" aria-hidden="true">04</div>
         <div class="bench-header">
           <div class="bench-info">
-            <h2>CSS LAYOUT & ANIMATION</h2>
-            <p>600 forced reflows on 1,500 nested flex/grid elements + 1,500 style recalcs on 900 elements</p>
+            <h2>CSS LAYOUT PIPELINE</h2>
+            <p>Layout invalidation, style recalculation, and compositor animation phases with frame-drop tracking</p>
           </div>
           <div class="bench-controls">
             <div class="score-block">
               <span class="bench-score" data-score-for="css">--</span>
-              <span class="bench-unit" data-unit-for="css"></span>
+              <span class="bench-unit" data-unit-for="css">index</span>
+              <span class="bench-raw" data-raw-for="css">raw: --</span>
+              <span class="bench-meta" data-meta-for="css">cv: --</span>
             </div>
             <button class="btn btn-run" data-run="css">EXEC</button>
             <button class="btn btn-info" data-info="css">?</button>
           </div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-progress-for="css"></div>
-        </div>
+        <div class="progress-bar"><div class="progress-fill" data-progress-for="css"></div></div>
       </div>
 
-      <div class="bench-card" data-bench="async">
+      <div class="bench-card" data-bench="worker">
         <div class="bench-index" aria-hidden="true">05</div>
         <div class="bench-header">
           <div class="bench-info">
-            <h2>ASYNC & CONCURRENCY</h2>
-            <p>Parallel Web Worker sieve (1.5M) vs single-thread + 9s rAF frame-timing jitter</p>
+            <h2>WORKER THROUGHPUT</h2>
+            <p>Parallel sweep over worker counts [1, 2, 4, max] with throughput scaling and efficiency metrics</p>
           </div>
           <div class="bench-controls">
             <div class="score-block">
-              <span class="bench-score" data-score-for="async">--</span>
-              <span class="bench-unit" data-unit-for="async"></span>
+              <span class="bench-score" data-score-for="worker">--</span>
+              <span class="bench-unit" data-unit-for="worker">index</span>
+              <span class="bench-raw" data-raw-for="worker">raw: --</span>
+              <span class="bench-meta" data-meta-for="worker">cv: --</span>
             </div>
-            <button class="btn btn-run" data-run="async">EXEC</button>
-            <button class="btn btn-info" data-info="async">?</button>
+            <button class="btn btn-run" data-run="worker">EXEC</button>
+            <button class="btn btn-info" data-info="worker">?</button>
           </div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-progress-for="async"></div>
-        </div>
+        <div class="progress-bar"><div class="progress-fill" data-progress-for="worker"></div></div>
       </div>
 
-      <div class="bench-card" data-bench="webgl">
+      <div class="bench-card" data-bench="responsive">
         <div class="bench-index" aria-hidden="true">06</div>
         <div class="bench-header">
           <div class="bench-info">
+            <h2>RESPONSIVENESS UNDER LOAD</h2>
+            <p>Event-loop lag, rAF jitter, and long tasks while workers and periodic main-thread CPU bursts run</p>
+          </div>
+          <div class="bench-controls">
+            <div class="score-block">
+              <span class="bench-score" data-score-for="responsive">--</span>
+              <span class="bench-unit" data-unit-for="responsive">index</span>
+              <span class="bench-raw" data-raw-for="responsive">raw: --</span>
+              <span class="bench-meta" data-meta-for="responsive">cv: --</span>
+            </div>
+            <button class="btn btn-run" data-run="responsive">EXEC</button>
+            <button class="btn btn-info" data-info="responsive">?</button>
+          </div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" data-progress-for="responsive"></div></div>
+      </div>
+
+      <div class="bench-card" data-bench="webgl">
+        <div class="bench-index" aria-hidden="true">07</div>
+        <div class="bench-header">
+          <div class="bench-info">
             <h2>WEBGL GPU RENDERING</h2>
-            <p>5K→80K lit triangles with procedural noise, dynamic lights, and bloom — progressive GPU stress</p>
+            <p>Fixed rendering tiers with weighted FPS and frame-time stats (GPU timer query when supported)</p>
           </div>
           <div class="bench-controls">
             <div class="score-block">
               <span class="bench-score" data-score-for="webgl">--</span>
-              <span class="bench-unit" data-unit-for="webgl"></span>
+              <span class="bench-unit" data-unit-for="webgl">index</span>
+              <span class="bench-raw" data-raw-for="webgl">raw: --</span>
+              <span class="bench-meta" data-meta-for="webgl">cv: --</span>
             </div>
             <button class="btn btn-run" data-run="webgl">EXEC</button>
             <button class="btn btn-info" data-info="webgl">?</button>
           </div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-progress-for="webgl"></div>
-        </div>
+        <div class="progress-bar"><div class="progress-fill" data-progress-for="webgl"></div></div>
       </div>
     </section>
-
   </main>
 
-  <!-- Benchmark mode overlay -->
   <div id="bench-mode-overlay" class="bench-mode-overlay" hidden>
     <div class="bench-mode-panel">
       <div class="bench-mode-header">
@@ -213,7 +236,7 @@
         </div>
         <div class="bench-mode-cooldown" id="bench-mode-cooldown" hidden>
           <div class="bench-mode-cooldown-icon">COOLING</div>
-          <div class="bench-mode-cooldown-timer" id="bench-mode-cooldown-timer">30</div>
+          <div class="bench-mode-cooldown-timer" id="bench-mode-cooldown-timer">8</div>
           <div class="bench-mode-cooldown-bar">
             <div class="bench-mode-cooldown-fill" id="bench-mode-cooldown-fill"></div>
           </div>
@@ -222,7 +245,6 @@
     </div>
   </div>
 
-  <!-- Benchmark results overlay -->
   <div id="bench-results-overlay" class="modal-overlay" hidden>
     <div class="bench-results-panel">
       <div class="modal-header">
@@ -243,11 +265,10 @@
     </div>
   </div>
 
-  <!-- Info modal -->
   <div id="info-modal" class="modal-overlay" hidden>
     <div class="modal-content">
       <div class="modal-header">
-        <span class="explain-tag">// WHY IT MATTERS</span>
+        <span class="explain-tag">// WHAT IT MEASURES</span>
         <button id="modal-close" class="btn btn-modal-close">X</button>
       </div>
       <p id="modal-body"></p>
@@ -256,12 +277,14 @@
 
   <div id="bench-sandbox"></div>
 
-  <script src="js/main.js"></script>
+  <script src="js/bench-utils.js"></script>
   <script src="js/bench-dom.js"></script>
   <script src="js/bench-canvas.js"></script>
   <script src="js/bench-compute.js"></script>
   <script src="js/bench-css.js"></script>
-  <script src="js/bench-async.js"></script>
+  <script src="js/bench-worker-throughput.js"></script>
+  <script src="js/bench-responsiveness.js"></script>
   <script src="js/bench-webgl.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
