@@ -363,19 +363,19 @@
 
     run: async function (onProgress) {
       const preview = document.createElement("div");
-      preview.className = "webgl-preview";
+      preview.className = "bench-preview";
       preview.innerHTML = `
-        <div class="webgl-preview-header">
-          <span class="webgl-preview-label">GPU STRESS // LIVE</span>
-          <span class="webgl-preview-stats" id="webgl-stats">---</span>
+        <div class="bench-preview-header">
+          <span class="bench-preview-label">GPU STRESS // LIVE</span>
+          <span class="bench-preview-stats" id="webgl-stats">---</span>
         </div>
-        <canvas id="webgl-preview-canvas"></canvas>
-        <div class="webgl-preview-scanlines"></div>
+        <canvas id="bench-preview-canvas"></canvas>
+        <div class="bench-preview-scanlines"></div>
       `;
       document.body.appendChild(preview);
       this._preview = preview;
 
-      const canvas = document.getElementById("webgl-preview-canvas");
+      const canvas = document.getElementById("bench-preview-canvas");
       const width = Math.min(640, window.innerWidth - 40);
       const height = Math.round(width * 0.6);
       canvas.width = width * window.devicePixelRatio;
@@ -520,7 +520,7 @@
 
     cleanup: function () {
       if (this._preview) {
-        this._preview.classList.add("webgl-preview-exit");
+        this._preview.classList.add("bench-preview-exit");
         const el = this._preview;
         setTimeout(() => el.remove(), 300);
         this._preview = null;

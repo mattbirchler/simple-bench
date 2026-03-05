@@ -4,6 +4,7 @@
   const LAYOUT_ITERATIONS = 600;
   const STYLE_ELEMENTS = 900;
   const STYLE_ITERATIONS = 1500;
+  const VIS_BLOCKS = 40;
 
   function buildLayoutTree(container) {
     let parent = container;
@@ -35,15 +36,50 @@
     name: "CSS Layout & Animation",
     description: "600 forced reflows on 1,500 nested flex/grid elements + 1,500 style recalcs on 900 elements",
 
+    _preview: null,
+
     run: async function (onProgress) {
-      // Phase 1: Layout thrash — toggle flex/grid properties and force reflow
+      // Create preview with mini blocks
+      const preview = document.createElement("div");
+      preview.className = "bench-preview";
+      let blocksHTML = "";
+      const colors = ["#00ffff", "#ff0055", "#00ff41", "#ffff00", "#8800ff"];
+      for (let i = 0; i < VIS_BLOCKS; i++) {
+        const col = colors[i % colors.length];
+        const size = 8 + Math.random() * 16;
+        blocksHTML += '<div class="css-mini-block" id="cssb-' + i + '" style="' +
+          "width:" + size + "px;height:" + size + "px;" +
+          "left:" + (Math.random() * 230) + "px;" +
+          "top:" + (Math.random() * 100) + "px;" +
+          "border-color:" + col + ";" +
+          "background:" + col + "22;" +
+          '"></div>';
+      }
+      preview.innerHTML = `
+        <div class="bench-preview-header">
+          <span class="bench-preview-label">CSS LAYOUT // LIVE</span>
+          <span class="bench-preview-stats" id="css-stats">PHASE 1: REFLOW</span>
+        </div>
+        <div class="bench-preview-body">
+          <div class="css-mini-viewport">${blocksHTML}</div>
+        </div>
+        <div class="bench-preview-scanlines"></div>
+      `;
+      document.body.appendChild(preview);
+      this._preview = preview;
+
+      const statsDisplay = document.getElementById("css-stats");
+      const visBlocks = [];
+      for (let i = 0; i < VIS_BLOCKS; i++) {
+        visBlocks.push(document.getElementById("cssb-" + i));
+      }
+
+      // Phase 1: Layout thrash
       const layoutContainer = document.createElement("div");
       sandbox.appendChild(layoutContainer);
       buildLayoutTree(layoutContainer);
 
       const wrappers = layoutContainer.querySelectorAll("div[style]");
-
-      // Accumulate only work time, yield outside timing
       let layoutElapsed = 0;
 
       for (let i = 0; i < LAYOUT_ITERATIONS; i++) {
@@ -55,21 +91,29 @@
           w.style.gridTemplateColumns =
             i % 2 === 0 ? "repeat(auto-fill, 60px)" : "repeat(auto-fill, 40px)";
         }
-        // Force synchronous reflow
         layoutContainer.offsetHeight;
         layoutElapsed += performance.now() - start;
 
         if (i % 20 === 0) {
           onProgress((i / LAYOUT_ITERATIONS) * 0.5);
+          statsDisplay.textContent = "REFLOW " + i + "/" + LAYOUT_ITERATIONS;
+
+          // Animate mini blocks — shuffle positions
+          for (let b = 0; b < visBlocks.length; b++) {
+            const col = i % 2 === 0;
+            visBlocks[b].style.left = (col ? (b % 10) * 25 : Math.random() * 230) + "px";
+            visBlocks[b].style.top = (col ? Math.floor(b / 10) * 28 : Math.random() * 100) + "px";
+          }
+
           await new Promise((r) => setTimeout(r, 0));
         }
       }
 
       const layoutOps = (LAYOUT_ITERATIONS / layoutElapsed) * 1000;
-
       sandbox.innerHTML = "";
 
-      // Phase 2: Style recalculation throughput — change transforms + colors, force reflow
+      // Phase 2: Style recalculation
+      statsDisplay.textContent = "PHASE 2: STYLE RECALC";
       const styleContainer = document.createElement("div");
       styleContainer.style.position = "relative";
       styleContainer.style.width = "800px";
@@ -99,28 +143,44 @@
           d.style.backgroundColor = i % 2 === 0 ? "#444" : "#222";
           d.style.width = (18 + (i % 4)) + "px";
         }
-        // Force synchronous style recalculation + layout
         styleContainer.offsetHeight;
         styleElapsed += performance.now() - start;
 
         if (i % 50 === 0) {
           onProgress(0.5 + (i / STYLE_ITERATIONS) * 0.5);
+          statsDisplay.textContent = "RECALC " + i + "/" + STYLE_ITERATIONS;
+
+          // Animate mini blocks with transforms
+          for (let b = 0; b < visBlocks.length; b++) {
+            visBlocks[b].style.transform = "translate(" +
+              (Math.sin(i + b) * 15) + "px," +
+              (Math.cos(i + b) * 10) + "px) rotate(" + (i * 3) + "deg)";
+            const w = 8 + (i % 6) + Math.random() * 10;
+            visBlocks[b].style.width = w + "px";
+            visBlocks[b].style.height = w + "px";
+          }
+
           await new Promise((r) => setTimeout(r, 0));
         }
       }
 
       const styleOps = (STYLE_ITERATIONS / styleElapsed) * 1000;
-
-      // Weighted composite: layout (40%) + style recalc (60%)
       const rawScore = layoutOps * 0.4 + styleOps * 0.6;
+      statsDisplay.textContent = rawScore.toFixed(0) + " ops/s";
 
       return { rawScore, unit: "ops/s" };
     },
 
-    cleanup: function () {},
+    cleanup: function () {
+      if (this._preview) {
+        this._preview.classList.add("bench-preview-exit");
+        const el = this._preview;
+        setTimeout(() => el.remove(), 300);
+        this._preview = null;
+      }
+    },
 
     normalize: function (rawScore) {
-      // Baseline: 1500 ops/s = score of 100
       return (rawScore / 1500) * 100;
     },
   };

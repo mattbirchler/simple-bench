@@ -64,50 +64,88 @@
   }
 
   function measureTask(fn, warmup, iterations) {
-    // Warmup — let JIT optimize
     for (let i = 0; i < warmup; i++) fn();
-
-    // Measured runs — accumulate only work time
     const start = performance.now();
     for (let i = 0; i < iterations; i++) fn();
     const elapsed = performance.now() - start;
-    return (iterations / elapsed) * 1000; // ops per second
+    return (iterations / elapsed) * 1000;
   }
+
+  const TASKS = [
+    { id: "sieve", label: "PRIME SIEVE (3M)", warmup: 3, iters: 15, fn: () => sieve(3000000) },
+    { id: "sort", label: "ARRAY SORT (300K)", warmup: 5, iters: 30, fn: () => arraySort(300000) },
+    { id: "matrix", label: "MATRIX MUL (350\u00B2)", warmup: 3, iters: 9, fn: () => matrixMultiply(350) },
+    { id: "json", label: "JSON R/T (50KB\u00D760)", warmup: 10, iters: 60, fn: () => jsonRoundTrip() },
+  ];
 
   window.SimpleBench.benchmarks.compute = {
     name: "JavaScript Compute",
     description: "Prime sieve to 3M, sort 300K floats, 350x350 matrix multiply, 50KB JSON x60 parse/stringify",
 
+    _preview: null,
+
     run: async function (onProgress) {
-      // Sieve — 3 warmup, 15 measured
-      const sieveOps = measureTask(() => sieve(3000000), 3, 15);
-      onProgress(0.25);
-      await new Promise((r) => setTimeout(r, 0));
+      // Create preview
+      const preview = document.createElement("div");
+      preview.className = "bench-preview";
+      const tasksHTML = TASKS.map(function (t) {
+        return '<div class="compute-task" id="ct-' + t.id + '">' +
+          '<span>\u25B6 ' + t.label + '</span>' +
+          '<span class="compute-task-result" id="ctr-' + t.id + '">---</span></div>';
+      }).join("");
+      preview.innerHTML = `
+        <div class="bench-preview-header">
+          <span class="bench-preview-label">JS COMPUTE // LIVE</span>
+          <span class="bench-preview-stats" id="compute-stats">---</span>
+        </div>
+        <div class="bench-preview-body">
+          <div class="compute-tasks">${tasksHTML}</div>
+        </div>
+        <div class="bench-preview-scanlines"></div>
+      `;
+      document.body.appendChild(preview);
+      this._preview = preview;
 
-      // Array sort — 5 warmup, 30 measured
-      const sortOps = measureTask(() => arraySort(300000), 5, 30);
-      onProgress(0.5);
-      await new Promise((r) => setTimeout(r, 0));
+      const statsDisplay = document.getElementById("compute-stats");
+      const results = [];
 
-      // Matrix multiply — 3 warmup, 9 measured
-      const matOps = measureTask(() => matrixMultiply(350), 3, 9);
-      onProgress(0.75);
-      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < TASKS.length; i++) {
+        const t = TASKS[i];
+        const taskEl = document.getElementById("ct-" + t.id);
+        const resultEl = document.getElementById("ctr-" + t.id);
 
-      // JSON round-trip — 10 warmup, 60 measured
-      const jsonOps = measureTask(() => jsonRoundTrip(), 10, 60);
-      onProgress(1);
+        taskEl.className = "compute-task running";
+        resultEl.textContent = "running...";
 
-      // Geometric mean
-      const geoMean = Math.pow(sieveOps * sortOps * matOps * jsonOps, 0.25);
+        await new Promise((r) => setTimeout(r, 0));
+
+        const ops = measureTask(t.fn, t.warmup, t.iters);
+        results.push(ops);
+
+        resultEl.textContent = ops.toFixed(1) + " ops/s";
+        taskEl.className = "compute-task done";
+        statsDisplay.textContent = (i + 1) + "/" + TASKS.length + " DONE";
+
+        onProgress((i + 1) / TASKS.length);
+        await new Promise((r) => setTimeout(r, 0));
+      }
+
+      const geoMean = Math.pow(results.reduce(function (a, b) { return a * b; }, 1), 0.25);
+      statsDisplay.textContent = "GEO MEAN: " + geoMean.toFixed(1);
 
       return { rawScore: geoMean, unit: "geo mean" };
     },
 
-    cleanup: function () {},
+    cleanup: function () {
+      if (this._preview) {
+        this._preview.classList.add("bench-preview-exit");
+        const el = this._preview;
+        setTimeout(() => el.remove(), 300);
+        this._preview = null;
+      }
+    },
 
     normalize: function (rawScore) {
-      // Baseline: geo mean of 800 = score of 100
       return (rawScore / 800) * 100;
     },
   };

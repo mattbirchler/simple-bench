@@ -727,8 +727,8 @@ footer {
   100% { opacity: 0; transform: scale(1.5); }
 }
 
-/* ---- WEBGL PREVIEW ---- */
-.webgl-preview {
+/* ---- BENCH PREVIEW (shared) ---- */
+.bench-preview {
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
@@ -738,37 +738,25 @@ footer {
   box-shadow:
     0 0 20px rgba(0, 255, 255, 0.15),
     0 0 60px rgba(0, 255, 255, 0.05);
-  animation: webgl-preview-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: preview-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
 }
 
-.webgl-preview-exit {
-  animation: webgl-preview-out 0.3s ease forwards;
+.bench-preview-exit {
+  animation: preview-out 0.3s ease forwards;
 }
 
-@keyframes webgl-preview-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+@keyframes preview-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes webgl-preview-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
+@keyframes preview-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(20px) scale(0.95); }
 }
 
-.webgl-preview-header {
+.bench-preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -777,7 +765,7 @@ footer {
   border-bottom: 1px solid var(--mid-gray);
 }
 
-.webgl-preview-label {
+.bench-preview-label {
   font-family: var(--font-mono);
   font-size: 0.5rem;
   font-weight: 700;
@@ -787,7 +775,7 @@ footer {
   text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
 }
 
-.webgl-preview-stats {
+.bench-preview-stats {
   font-family: var(--font-mono);
   font-size: 0.55rem;
   font-weight: 700;
@@ -797,11 +785,11 @@ footer {
   text-shadow: 0 0 6px rgba(0, 255, 65, 0.4);
 }
 
-.webgl-preview canvas {
+.bench-preview canvas {
   display: block;
 }
 
-.webgl-preview-scanlines {
+.bench-preview-scanlines {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -815,6 +803,134 @@ footer {
   mix-blend-mode: multiply;
 }
 
+.bench-preview-body {
+  padding: 0.5rem 0.6rem;
+  position: relative;
+}
+
+/* ---- DOM PREVIEW ---- */
+.dom-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  width: 260px;
+  margin-top: 0.3rem;
+}
+
+.dom-grid-cell {
+  width: 6px;
+  height: 6px;
+  background: var(--mid-gray);
+  transition: background 0.08s;
+}
+
+.dom-grid-cell.active {
+  background: var(--toxic);
+  box-shadow: 0 0 3px rgba(0, 255, 65, 0.5);
+}
+
+.dom-grid-cell.deleting {
+  background: var(--hot-pink);
+  box-shadow: 0 0 3px rgba(255, 0, 85, 0.5);
+}
+
+/* ---- COMPUTE PREVIEW ---- */
+.compute-tasks {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  line-height: 1.8;
+  padding: 0.3rem 0;
+  width: 260px;
+}
+
+.compute-task {
+  color: var(--gray);
+  display: flex;
+  justify-content: space-between;
+}
+
+.compute-task.running {
+  color: var(--cyan);
+}
+
+.compute-task.done {
+  color: var(--toxic);
+}
+
+.compute-task-result {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- CSS PREVIEW ---- */
+.css-mini-viewport {
+  width: 260px;
+  height: 120px;
+  position: relative;
+  overflow: hidden;
+  margin-top: 0.3rem;
+  border: 1px solid var(--mid-gray);
+}
+
+.css-mini-block {
+  position: absolute;
+  border: 1px solid;
+  transition: all 0.05s;
+}
+
+/* ---- ASYNC PREVIEW ---- */
+.async-preview-content {
+  width: 260px;
+  padding: 0.3rem 0;
+}
+
+.async-worker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--gray);
+}
+
+.async-worker-label {
+  width: 2rem;
+  flex-shrink: 0;
+}
+
+.async-worker-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--mid-gray);
+  overflow: hidden;
+}
+
+.async-worker-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--cyan);
+  transition: width 0.1s;
+}
+
+.async-worker-fill.complete {
+  background: var(--toxic);
+}
+
+.async-phase-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+  margin-bottom: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.async-jitter-canvas {
+  width: 260px;
+  height: 50px;
+  display: block;
+}
+
 /* ---- RESPONSIVE ---- */
 @media (max-width: 640px) {
   header { padding: 1rem; }
@@ -826,7 +942,7 @@ footer {
   .bench-controls { width: 100%; justify-content: space-between; }
   .bench-index { font-size: 2.5rem; }
   footer { font-size: 0.5rem; }
-  .webgl-preview {
+  .bench-preview {
     bottom: 0.75rem;
     right: 0.75rem;
     left: 0.75rem;
