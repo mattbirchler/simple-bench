@@ -725,6 +725,94 @@ footer {
   100% { opacity: 0; transform: scale(1.5); }
 }
 
+/* ---- WEBGL PREVIEW ---- */
+.webgl-preview {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 8000;
+  border: 2px solid var(--cyan);
+  background: var(--black);
+  box-shadow:
+    0 0 20px rgba(0, 255, 255, 0.15),
+    0 0 60px rgba(0, 255, 255, 0.05);
+  animation: webgl-preview-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+
+.webgl-preview-exit {
+  animation: webgl-preview-out 0.3s ease forwards;
+}
+
+@keyframes webgl-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes webgl-preview-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+}
+
+.webgl-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0.6rem;
+  background: var(--dark-gray);
+  border-bottom: 1px solid var(--mid-gray);
+}
+
+.webgl-preview-label {
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
+}
+
+.webgl-preview-stats {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--toxic);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 6px rgba(0, 255, 65, 0.4);
+}
+
+.webgl-preview canvas {
+  display: block;
+}
+
+.webgl-preview-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.12) 2px,
+    rgba(0, 0, 0, 0.12) 4px
+  );
+  mix-blend-mode: multiply;
+}
+
 /* ---- RESPONSIVE ---- */
 @media (max-width: 640px) {
   header { padding: 1rem; }
@@ -736,4 +824,9 @@ footer {
   .bench-controls { width: 100%; justify-content: space-between; }
   .bench-index { font-size: 2.5rem; }
   footer { font-size: 0.5rem; }
+  .webgl-preview {
+    bottom: 0.75rem;
+    right: 0.75rem;
+    left: 0.75rem;
+  }
 }

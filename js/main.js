@@ -1,7 +1,7 @@
 window.SimpleBench = { benchmarks: {} };
 
 (function () {
-  const benchOrder = ["dom", "canvas", "compute", "css", "async"];
+  const benchOrder = ["dom", "canvas", "compute", "css", "async", "webgl"];
   const results = {};
   let running = false;
 
@@ -192,6 +192,7 @@ window.SimpleBench = { benchmarks: {} };
     compute: "JavaScript powers everything from spreadsheet formulas to AI inference in the browser. This test runs heavy number-crunching, sorting, and data parsing to measure your engine\u2019s raw computational muscle.",
     css: "Scrolling, resizing windows, and opening menus all force the browser to recalculate layout. Complex sites with flexbox and grid layouts amplify this cost. This test stress-tests how fast your browser reflows and repaints under pressure.",
     async: "Modern sites offload heavy work to background threads so the UI stays smooth. This test measures how well your browser parallelizes across CPU cores and how steady your animation frame rate stays under load.",
+    webgl: "3D maps, browser games, product viewers, and GPU-accelerated effects all use WebGL. This test pushes thousands of instanced triangles through the GPU pipeline to measure your graphics hardware and driver performance.",
   };
 
   const modal = document.getElementById("info-modal");

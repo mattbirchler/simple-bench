@@ -150,6 +150,27 @@
           <div class="progress-fill" data-progress-for="async"></div>
         </div>
       </div>
+
+      <div class="bench-card" data-bench="webgl">
+        <div class="bench-index" aria-hidden="true">06</div>
+        <div class="bench-header">
+          <div class="bench-info">
+            <h2>WEBGL GPU RENDERING</h2>
+            <p>5K→80K lit triangles with procedural noise, dynamic lights, and bloom — progressive GPU stress</p>
+          </div>
+          <div class="bench-controls">
+            <div class="score-block">
+              <span class="bench-score" data-score-for="webgl">--</span>
+              <span class="bench-unit" data-unit-for="webgl"></span>
+            </div>
+            <button class="btn btn-run" data-run="webgl">EXEC</button>
+            <button class="btn btn-info" data-info="webgl">?</button>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" data-progress-for="webgl"></div>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -173,5 +194,6 @@
   <script src="js/bench-compute.js"></script>
   <script src="js/bench-css.js"></script>
   <script src="js/bench-async.js"></script>
+  <script src="js/bench-webgl.js"></script>
 </body>
 </html>
