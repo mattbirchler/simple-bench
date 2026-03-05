@@ -159,31 +159,47 @@
       let workersAvailable = true;
 
       try {
-        // Single-threaded baseline — show as sequential fills
+        // Single-threaded baseline — yield between each so bars animate
         statsDisplay.textContent = "SINGLE THREAD...";
         let singleTotal = 0;
         for (let i = 0; i < workerCount; i++) {
+          // Show which worker slot is "running"
+          workerFills[i].style.width = "50%";
+          workerFills[i].style.background = "var(--yellow)";
+          await new Promise((r) => setTimeout(r, 0));
+
           singleTotal += sieveSingleThread(SIEVE_N);
+
           workerFills[i].style.width = "100%";
           workerFills[i].style.background = "var(--gray)";
+          statsDisplay.textContent = "SINGLE " + (i + 1) + "/" + workerCount;
+          await new Promise((r) => setTimeout(r, 0));
         }
         onProgress(0.2);
-        await new Promise((r) => setTimeout(r, 100));
 
         // Reset fills for parallel run
         for (let i = 0; i < workerCount; i++) {
           workerFills[i].style.width = "0%";
           workerFills[i].style.background = "";
         }
+        await new Promise((r) => setTimeout(r, 50));
 
         statsDisplay.textContent = "PARALLEL WORKERS...";
 
+        // Show all bars pulsing while workers run
+        for (let i = 0; i < workerCount; i++) {
+          workerFills[i].style.width = "100%";
+          workerFills[i].style.background = "var(--cyan)";
+          workerFills[i].style.opacity = "0.3";
+          workerFills[i].style.transition = "opacity 0.3s";
+        }
+
         // Parallel workers
         const { wallTime } = await runWorkers(workerCount, function (completed) {
-          // Mark completed workers
+          // Mark completed workers with solid fill
           if (completed <= workerCount) {
-            workerFills[completed - 1].style.width = "100%";
-            workerFills[completed - 1].classList.add("complete");
+            workerFills[completed - 1].style.opacity = "1";
+            workerFills[completed - 1].style.background = "var(--toxic)";
           }
         });
 
