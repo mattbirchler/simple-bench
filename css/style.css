@@ -467,27 +467,61 @@ main {
   text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
 }
 
-/* ---- BENCH EXPLAIN OVERLAY ---- */
-.bench-explain {
-  position: absolute;
-  inset: 0;
-  background: rgba(10, 10, 10, 0.92);
-  padding: 0.875rem 1.25rem;
-  padding-left: 1.5rem;
+/* ---- INFO BUTTON ---- */
+.btn-info {
+  background: transparent;
+  color: var(--gray);
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 2px solid var(--mid-gray);
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  z-index: 2;
-  opacity: 0;
-  clip-path: inset(0 0 0 100%);
-  transition: clip-path 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.2s ease;
-  pointer-events: none;
-  border-left: 3px solid var(--cyan);
+  font-size: 0.8rem;
+  line-height: 1;
 }
 
-.bench-explain::before {
+.btn-info:hover:not(:disabled) {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+}
+
+/* ---- INFO MODAL ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.85);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: modal-fade-in 0.2s ease;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: var(--dark-gray);
+  border: 2px solid var(--cyan);
+  border-left: 4px solid var(--cyan);
+  padding: 1.5rem 1.75rem;
+  max-width: 520px;
+  width: 100%;
+  position: relative;
+  animation: modal-slide-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.modal-content::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -501,15 +535,34 @@ main {
   pointer-events: none;
 }
 
-.bench-card:hover .bench-explain {
-  opacity: 1;
-  clip-path: inset(0 0 0 0);
+@keyframes modal-slide-in {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
-.bench-card.running .bench-explain,
-.bench-card.running:hover .bench-explain {
-  opacity: 0;
-  clip-path: inset(0 0 0 100%);
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.btn-modal-close {
+  background: transparent;
+  color: var(--gray);
+  border: 2px solid var(--mid-gray);
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}
+
+.btn-modal-close:hover {
+  border-color: var(--hot-pink);
+  color: var(--hot-pink);
 }
 
 .explain-tag {
@@ -522,13 +575,13 @@ main {
   text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
 }
 
-.bench-explain p {
+#modal-body {
   font-family: var(--font-body);
-  font-size: 0.75rem;
-  line-height: 1.5;
+  font-size: 0.85rem;
+  line-height: 1.6;
   color: var(--white);
   opacity: 0.85;
-  max-width: 60ch;
+  position: relative;
 }
 
 /* ---- BENCH INDEX (big faded number) ---- */

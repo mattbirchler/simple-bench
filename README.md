@@ -28,7 +28,7 @@ SimpleBench runs 5 tests that stress different browser subsystems:
 
 Each benchmark produces a raw score (ops/sec, frames/sec, etc.) which is normalized against a baseline where 100 = good modern hardware. Scores are uncapped — faster hardware scores higher.
 
-The **Composite Index** is the arithmetic mean of all completed benchmark scores.
+The **Composite Index** is the geometric mean of all completed benchmark scores.
 
 ## Running Locally
 

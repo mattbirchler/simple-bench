@@ -185,6 +185,42 @@ window.SimpleBench = { benchmarks: {} };
     });
   });
 
+  // ---- Info modal ----
+  const benchExplanations = {
+    dom: "Every time a webpage updates \u2014 loading emails, refreshing a feed, filtering a table \u2014 the browser creates and destroys thousands of elements. This test hammers that pipeline to measure how fast your browser can churn through real page updates.",
+    canvas: "Maps, data visualizations, browser games, and image editors all rely on Canvas drawing. This test floods the 2D renderer with thousands of shapes per frame to measure your browser\u2019s raw graphics throughput.",
+    compute: "JavaScript powers everything from spreadsheet formulas to AI inference in the browser. This test runs heavy number-crunching, sorting, and data parsing to measure your engine\u2019s raw computational muscle.",
+    css: "Scrolling, resizing windows, and opening menus all force the browser to recalculate layout. Complex sites with flexbox and grid layouts amplify this cost. This test stress-tests how fast your browser reflows and repaints under pressure.",
+    async: "Modern sites offload heavy work to background threads so the UI stays smooth. This test measures how well your browser parallelizes across CPU cores and how steady your animation frame rate stays under load.",
+  };
+
+  const modal = document.getElementById("info-modal");
+  const modalBody = document.getElementById("modal-body");
+  const modalClose = document.getElementById("modal-close");
+
+  function openModal(benchId) {
+    modalBody.textContent = benchExplanations[benchId] || "";
+    modal.hidden = false;
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+  }
+
+  modalClose.addEventListener("click", closeModal);
+  modal.addEventListener("click", function (e) {
+    if (e.target === modal) closeModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !modal.hidden) closeModal();
+  });
+
+  document.querySelectorAll("[data-info]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      openModal(btn.getAttribute("data-info"));
+    });
+  });
+
   // ---- Ambient glitch: occasional random screen tear ----
   function randomScreenTear() {
     if (running) {
